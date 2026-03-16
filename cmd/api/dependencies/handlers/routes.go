@@ -30,6 +30,8 @@ func (a *HandlerDependencies) Routes() http.Handler  {
        // Request sent first to recoverPanic() then sent to rateLimit()
     // finally it is sent to the router.
 	*/
-   return router
+	router.HandlerFunc(http.MethodGet, "/test", a.testHandler)
+	
+   	return router
   
 }
