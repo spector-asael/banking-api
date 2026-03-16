@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS position (
+    id SERIAL PRIMARY KEY,
+    position_name TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);

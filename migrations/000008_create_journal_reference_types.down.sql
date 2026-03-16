@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS journal_reference_types CASCADE;

@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS gl_accounts CASCADE;
+DROP TABLE IF EXISTS gl_account_categories CASCADE;
