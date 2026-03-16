@@ -24,6 +24,7 @@ type ApplicationDependencies struct {
 	Models data.Models
 }
 
+/*
 func CreateDependencies() ApplicationDependencies {
 	// 1. Create logger
 	logger := slog.Default()
@@ -44,4 +45,4 @@ func CreateDependencies() ApplicationDependencies {
 		Logger: logger,
 		// Models: models,
 	}
-}
+}*/

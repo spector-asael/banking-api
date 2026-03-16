@@ -5,10 +5,16 @@ package handlers
 import (
   "net/http"
   "github.com/julienschmidt/httprouter"
+  "github.com/spector-asael/banking-api/cmd/api/dependencies/middleware"
 )
 
 func (a *HandlerDependencies) Routes() http.Handler  {
 
+	middlewareInstance := & middleware.MiddlewareDependencies{
+		Config: a.Config,
+		Logger: a.Logger,
+
+	}
    // setup a new router
    router := httprouter.New()
    // router.NotFound = http.HandlerFunc(a.notFoundResponse)
@@ -22,16 +28,16 @@ func (a *HandlerDependencies) Routes() http.Handler  {
    router.HandlerFunc(http.MethodPatch, "/v1/update", a.updateDepositHandler)
    router.HandlerFunc(http.MethodPost, "/v1/transfer", TransferHandler)
    router.HandlerFunc(http.MethodGet, "/shutdown", shutdownTestHandler)
-   
+   */
 
-   loggingMiddleware := a.loggingMiddleware(router)
-   rateLimitMiddleware := a.rateLimit(loggingMiddleware)
-   panicMiddleware := a.recoverPanic(rateLimitMiddleware)
-       // Request sent first to recoverPanic() then sent to rateLimit()
-    // finally it is sent to the router.
-	*/
-	router.HandlerFunc(http.MethodGet, "/test", a.testHandler)
+   	router.HandlerFunc(http.MethodGet, "/test", a.testHandler)
 	
-   	return router
+	loggingMiddleware := middlewareInstance.LoggingMiddleware(router)
+	rateLimitMiddleware := middlewareInstance.RateLimit(loggingMiddleware)
+	panicMiddleware := middlewareInstance.RecoverPanic(rateLimitMiddleware)
+		// Request sent first to recoverPanic() then sent to rateLimit()
+		// finally it is sent to the router.
+	
+   	return panicMiddleware
   
 }

@@ -19,6 +19,7 @@ func Serve(settings *dependencies.ServerConfig, appInstance *dependencies.Applic
 
 		HandlerDependencies := &handlers.HandlerDependencies{
 			Logger: appInstance.Logger,
+			Config: appInstance.Config,
 		}
 
 		apiServer := &http.Server{

@@ -38,3 +38,9 @@ migrations/down:
 migrations/fix:
 	@echo 'Forcing schema migrations version to ${version}...'
 	migrate -path ./migrations -database ${BANK_DB_DSN} force ${version}
+
+
+.PHONY: testroute 
+testroute:
+	@echo 'Testing test route...'
+	curl -i http://localhost:4000/test

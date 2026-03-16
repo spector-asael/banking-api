@@ -28,7 +28,7 @@ func main() {
 
 	flag.Parse()
 
-		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	// the call to openDB() sets up our connection pool
 	db, err := openDB(settings)

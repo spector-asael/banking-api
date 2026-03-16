@@ -19,7 +19,7 @@ func (a *HelperDependencies)logError(r *http.Request, err error)  {
 }
 
 // send an error response if our server messes up
-func (a *HelperDependencies)serverErrorResponse(w http.ResponseWriter,
+func (a *HelperDependencies)ServerErrorResponse(w http.ResponseWriter,
                                                      r *http.Request, 
                                                      err error)  {
 
@@ -65,7 +65,7 @@ func (a *HelperDependencies)failedValidationResponse(w http.ResponseWriter, r *h
 }
 
 // send an error response if rate limit exceeded (429 - Too Many Requests)
-func (a *HelperDependencies)rateLimitExceededResponse(w http.ResponseWriter,
+func (a *HelperDependencies)RateLimitExceededResponse(w http.ResponseWriter,
                                                         r *http.Request)  {
 
    message := "Error 429: rate limit exceeded"
