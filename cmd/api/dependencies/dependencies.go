@@ -16,6 +16,9 @@ type ServerConfig struct {
         Burst int                        // initial requests possible
         Enabled bool                     // enable or disable rate limiter
     }
+	Cors struct {
+		TrustedOrigins []string
+	}
 }
 
 type ApplicationDependencies struct {

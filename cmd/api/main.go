@@ -9,11 +9,14 @@ import (
 	"os"
 	"github.com/spector-asael/banking-api/cmd/api/dependencies"
 	"github.com/spector-asael/banking-api/internal/data"
+	"strings"
+	"expvar"
 )
 
 func main() {
 
 	var settings dependencies.ServerConfig 
+	const appVersion = "1.0.0"
 
 	fmt.Println("Starting API server...")
 
@@ -25,6 +28,12 @@ func main() {
 	flag.IntVar(&settings.Limiter.Burst, "limiter-burst", 5, "Rate Limiter maximum burst")
 
     flag.BoolVar(&settings.Limiter.Enabled, "limiter-enabled", true, "Enable rate limiter")
+
+	flag.Func("cors-trusted-origins", "Trusted CORS origins (space separated)", 
+		func(val string) error {
+		settings.Cors.TrustedOrigins = strings.Fields(val)
+		return nil
+	})
 
 	flag.Parse()
 
@@ -42,11 +51,12 @@ func main() {
 
 	logger.Info("database connection pool established")
 
+	expvar.NewString("version").Set(appVersion)
+
 	appInstance := &dependencies.ApplicationDependencies {
 		Config: settings,
 		Logger: logger,
-		Models: data.Models{
-	},
+		Models: data.Models{},
 	}
 
 	err = Serve(&settings, appInstance)

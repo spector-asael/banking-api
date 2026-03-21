@@ -8,7 +8,12 @@ include .envrc
 ## run: run the cmd/api application
 run: 
 	@echo 'Running application...'
-	@go run ./cmd/api -db-dsn="${BANK_DB_DSN}" -env=development -limiter-rps=2 -limiter-burst=5
+	@go run ./cmd/api \
+	-db-dsn="${BANK_DB_DSN}" \
+	-env=development -limiter-rps=2 \
+	-limiter-burst=5 \
+	-limiter-enabled=true \
+	-cors-trusted-origins="http://localhost:9000 http://localhost:9000"
 
 ## db/psql: Connect to the banking database using psql
 .PHONY: db

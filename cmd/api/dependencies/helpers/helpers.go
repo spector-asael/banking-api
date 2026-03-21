@@ -36,7 +36,7 @@ func (a *HelperDependencies)WriteJSON(w http.ResponseWriter, status int,
 
 }
 
-func (a *HelperDependencies)readJSON(w http.ResponseWriter,
+func (a *HelperDependencies)ReadJSON(w http.ResponseWriter,
                                           r *http.Request,
                                           destination any) error { 
 

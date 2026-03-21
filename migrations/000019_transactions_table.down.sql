@@ -1,0 +1,1 @@
+DROP TABLE public.account_transactions CASCADE;
