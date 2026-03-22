@@ -33,10 +33,13 @@ func (a *HandlerDependencies) Routes() http.Handler  {
   router.HandlerFunc(http.MethodPost, "/api/test", a.postTestHandler)
   router.Handler(http.MethodGet, "/api/observability/test/metrics", expvar.Handler())
 	
-	loggingMiddleware := middlewareInstance.LoggingMiddleware(router)
+  gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(router)
+  gzipResponseMiddleware := middlewareInstance.GzipResponseMiddleware(gzipRequestMiddleware)
+	loggingMiddleware := middlewareInstance.LoggingMiddleware(gzipResponseMiddleware)
 	rateLimitMiddleware := middlewareInstance.RateLimit(loggingMiddleware)
   corsMiddleware := middlewareInstance.EnableCORS(rateLimitMiddleware)
-	panicMiddleware := middlewareInstance.RecoverPanic(corsMiddleware)
+  metricsMiddleware := middlewareInstance.MetricsMiddleware(corsMiddleware)
+	panicMiddleware := middlewareInstance.RecoverPanic(metricsMiddleware)
 
 
   // Request sent first to recoverPanic() then sent to rateLimit()

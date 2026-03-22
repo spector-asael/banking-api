@@ -11,6 +11,8 @@ import (
 	"github.com/spector-asael/banking-api/internal/data"
 	"strings"
 	"expvar"
+	"runtime"
+	"time"
 )
 
 func main() {
@@ -52,6 +54,23 @@ func main() {
 	logger.Info("database connection pool established")
 
 	expvar.NewString("version").Set(appVersion)
+	// The number of active goroutines 
+	// is a useful metric to monitor in a production application
+	// as it can help you identify potential performance issues or bottlenecks. 
+	// By publishing this information using expvar, 
+	// you can easily track the number of active goroutines over time 
+	// and identify any spikes or trends that may indicate a problem.
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+	// The database connection pool metrics 
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
+	// THe current timestamp 
+	expvar.Publish("timestamp", expvar.Func(func() any {
+		return fmt.Sprintf("%d", time.Now().Unix())
+	}))
 
 	appInstance := &dependencies.ApplicationDependencies {
 		Config: settings,

@@ -12,7 +12,7 @@ run:
 	-db-dsn="${BANK_DB_DSN}" \
 	-env=development -limiter-rps=2 \
 	-limiter-burst=5 \
-	-limiter-enabled=true \
+	-limiter-enabled=false \
 	-cors-trusted-origins="http://localhost:9000 http://localhost:9000"
 
 ## db/psql: Connect to the banking database using psql
