@@ -13,13 +13,17 @@ import (
 	"errors"
 	"github.com/spector-asael/banking-api/cmd/api/dependencies"
 	"github.com/spector-asael/banking-api/cmd/api/dependencies/handlers"
+	"github.com/spector-asael/banking-api/cmd/api/dependencies/helpers"
 )
 func Serve(settings *dependencies.ServerConfig, appInstance *dependencies.ApplicationDependencies) error {
-
 
 		HandlerDependencies := &handlers.HandlerDependencies{
 			Logger: appInstance.Logger,
 			Config: appInstance.Config,
+			Helper: helpers.HelperDependencies{
+				Logger: appInstance.Logger,
+			},
+			Models: appInstance.Models,
 		}
 
 		apiServer := &http.Server{

@@ -72,10 +72,11 @@ func main() {
 		return fmt.Sprintf("%d", time.Now().Unix())
 	}))
 
+	models := data.Models{}.NewModels(db)
 	appInstance := &dependencies.ApplicationDependencies {
 		Config: settings,
 		Logger: logger,
-		Models: data.Models{},
+		Models: models,
 	}
 
 	err = Serve(&settings, appInstance)

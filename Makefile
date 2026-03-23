@@ -49,3 +49,34 @@ migrations/fix:
 testroute:
 	@echo 'Testing test route...'
 	curl -i http://localhost:4000/test
+
+.PHONY: getpersons
+# Get all persons (default page=1, page_size=5, sort=id)
+getpersons:
+	@echo 'Getting all persons...'
+	curl -i http://localhost:4000/api/persons
+
+.PHONY: getpersons-custom
+# Get first page, 10 per page, sorted by last_name descending
+getpersons-custom:
+	@echo 'Getting first page of persons, 10 per page, sorted by last_name'
+	curl -i "http://localhost:4000/api/persons?page=1&page_size=10&sort=-last_name"
+
+
+.PHONY: getpersons-filter
+# Filter by name containing "John"
+getpersons-filter:
+	@echo 'Getting persons with name containing "John"...'
+	curl -i "http://localhost:4000/api/persons?name=John"
+
+.PHONY: getperson-ssid
+# Get person by social security number
+getperson-ssid:
+	@echo 'Getting person with social security number...'
+	curl -i http://localhost:4000/api/persons/987-65-4321
+
+# createperson:
+# 	@echo 'Creating a new person...'
+# 	curl -i -X POST http://localhost:4000/api/persons \
+# 	-H "Content-Type: application/json" \
+# 	-d '{"first_name":"Alice","last_name":"Smith","social_security_number":"123456789","email":"alice.smith@example.com","date_of_birth":"1990-05-15T00:00:00Z","phone_number":"1234567890","living_address":"123 Main St, Cityville"}'

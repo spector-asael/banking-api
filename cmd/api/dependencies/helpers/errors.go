@@ -32,7 +32,7 @@ func (a *HelperDependencies)ServerErrorResponse(w http.ResponseWriter,
 }
 
 // send an error response if our client messes up with a 404
-func (a *HelperDependencies)notFoundResponse(w http.ResponseWriter,
+func (a *HelperDependencies)NotFoundResponse(w http.ResponseWriter,
                                                      r *http.Request)  {
 
    // we only log server errors, not client errors
@@ -42,7 +42,7 @@ func (a *HelperDependencies)notFoundResponse(w http.ResponseWriter,
 }
 
 // send an error response if our client messes up with a 405
-func (a *HelperDependencies)methodNotAllowedResponse(
+func (a *HelperDependencies)MethodNotAllowedResponse(
                                                      w http.ResponseWriter,
                                                      r *http.Request)  {
 
@@ -52,14 +52,14 @@ func (a *HelperDependencies)methodNotAllowedResponse(
    a.errorResponseJSON(w, r, http.StatusMethodNotAllowed, message)
 }
 
-func (a *HelperDependencies)badRequestResponse(w http.ResponseWriter,
+func (a *HelperDependencies)BadRequestResponse(w http.ResponseWriter,
                                                      r *http.Request,
                                                      err error)  {
 
    a.errorResponseJSON(w, r, http.StatusBadRequest, err.Error())
 }
 
-func (a *HelperDependencies)failedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
+func (a *HelperDependencies)FailedValidationResponse(w http.ResponseWriter, r *http.Request, errors map[string]string) {
 
    a.errorResponseJSON(w, r, http.StatusUnprocessableEntity, errors)
 }
