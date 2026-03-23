@@ -114,6 +114,10 @@ func (a *HandlerDependencies) createPersonHandler(w http.ResponseWriter, r *http
 
 	err = a.Models.Persons.Insert(&input)
 	if err != nil {
+		if err == data.ErrDuplicatePerson {
+			a.Helper.FailedValidationResponse(w, r, map[string]string{"social_security_number": "person with this SSID or email already exists"})
+			return
+		}
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}

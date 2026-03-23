@@ -26,7 +26,21 @@ func (a *HandlerDependencies) Routes() http.Handler  {
   router.HandlerFunc(http.MethodPost, "/api/persons", a.createPersonHandler)                   // Create a new person
   router.HandlerFunc(http.MethodGet, "/api/persons/:ssid", a.getPersonBySSIDHandler)          // Get a person by SSID
   router.HandlerFunc(http.MethodPatch, "/api/persons/:ssid", a.updatePersonHandler)           // Update a person by SSID
-  router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", a.deletePersonHandler) 
+  router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", a.deletePersonHandler)
+
+  // Customers routes
+  router.HandlerFunc(http.MethodGet, "/api/customers", a.getAllCustomersHandler)                // Get all customers
+  router.HandlerFunc(http.MethodPost, "/api/customers", a.createCustomerHandler)                // Create a new customer
+  router.HandlerFunc(http.MethodGet, "/api/customers/:id", a.getCustomerByIDHandler)            // Get a customer by ID
+  router.HandlerFunc(http.MethodPatch, "/api/customers/:id/kyc-status", a.updateCustomerKYCStatusHandler) // Update KYC status
+  router.HandlerFunc(http.MethodDelete, "/api/customers/:id", a.deleteCustomerHandler)           // Delete a customer
+
+  // Accounts routes
+  router.HandlerFunc(http.MethodGet, "/api/accounts", a.getAllAccountsHandler)                  // Get all accounts
+  router.HandlerFunc(http.MethodPost, "/api/accounts", a.createAccountHandler)                  // Create a new account
+  router.HandlerFunc(http.MethodGet, "/api/accounts/:id", a.getAccountByIDHandler)              // Get an account by ID
+  router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", a.updateAccountHandler)             // Update an account
+  router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", a.deleteAccountHandler)             // Delete an account
     
   gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(router)
   gzipResponseMiddleware := middlewareInstance.GzipResponseMiddleware(gzipRequestMiddleware)

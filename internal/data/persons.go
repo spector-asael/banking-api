@@ -28,6 +28,39 @@ type Person struct {
 	UpdatedAt              time.Time `json:"updated_at"`
 }
 
+// GetByID returns a person by their database ID.
+func (m PersonModel) GetByID(id int64) (*Person, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT id, first_name, last_name, social_security_number, email, date_of_birth, phone_number, living_address, created_at, updated_at
+		FROM persons
+		WHERE id = $1
+	`
+
+	var p Person
+	err := m.DB.QueryRowContext(ctx, query, id).Scan(
+		&p.ID,
+		&p.FirstName,
+		&p.LastName,
+		&p.SocialSecurityNumber,
+		&p.Email,
+		&p.DateOfBirth,
+		&p.PhoneNumber,
+		&p.LivingAddress,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
 // ValidatePerson checks that the person input is valid.
 func ValidatePerson(v *validator.Validator, p *Person) {
 	// Required fields
@@ -106,6 +139,8 @@ func (m PersonModel) GetBySSID(ssn string) (*Person, error) {
 	return &p, nil
 }
 
+var ErrDuplicatePerson = errors.New("person with this SSID or email already exists")
+
 func (m PersonModel) Insert(p *Person) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -124,7 +159,7 @@ func (m PersonModel) Insert(p *Person) error {
 		RETURNING id, created_at, updated_at
 	`
 
-	return m.DB.QueryRowContext(
+	err := m.DB.QueryRowContext(
 		ctx,
 		query,
 		p.FirstName,
@@ -135,6 +170,13 @@ func (m PersonModel) Insert(p *Person) error {
 		p.PhoneNumber,
 		p.LivingAddress,
 	).Scan(&p.ID, &p.CreatedAt, &p.UpdatedAt)
+	if err != nil {
+		if err.Error() != "" && (err.Error() == "UNIQUE constraint failed: persons.social_security_number" || err.Error() == "UNIQUE constraint failed: persons.email" || err.Error() == "pq: duplicate key value violates unique constraint \"persons_social_security_number_key\"" || err.Error() == "pq: duplicate key value violates unique constraint \"persons_email_key\"") {
+			return ErrDuplicatePerson
+		}
+		return err
+	}
+	return nil
 }
 
 // Delete removes a person by social_security_number.

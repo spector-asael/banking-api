@@ -74,9 +74,111 @@ getpersons-filter:
 getperson-ssid:
 	@echo 'Getting person with social security number...'
 	curl -i http://localhost:4000/api/persons/987-65-4321
-
 # createperson:
 # 	@echo 'Creating a new person...'
 # 	curl -i -X POST http://localhost:4000/api/persons \
 # 	-H "Content-Type: application/json" \
 # 	-d '{"first_name":"Alice","last_name":"Smith","social_security_number":"123456789","email":"alice.smith@example.com","date_of_birth":"1990-05-15T00:00:00Z","phone_number":"1234567890","living_address":"123 Main St, Cityville"}'
+
+# CUSTOMER ROUTE TESTS
+.PHONY: getcustomers
+getcustomers:
+	@echo 'Getting all customers...'
+	curl -i http://localhost:4000/api/customers
+
+.PHONY: getcustomers-custom
+getcustomers-custom:
+	@echo 'Getting first page of customers, 10 per page, sorted by created_at desc'
+	curl -i "http://localhost:4000/api/customers?page=1&page_size=10&sort=-created_at"
+
+.PHONY: createcustomer
+createcustomer:
+	@echo 'Creating a new customer for person with SSN 987-65-4321 (assumes person exists and has id=1, adjust if needed)...'
+	curl -i -X POST http://localhost:4000/api/customers \
+	-H "Content-Type: application/json" \
+	-d '{"person_id":1,"kyc_status_id":1}'
+
+.PHONY: getcustomer-id
+getcustomer-id:
+	@echo 'Getting customer with id=1...'
+	curl -i http://localhost:4000/api/customers/1
+
+.PHONY: updatecustomer-kyc
+updatecustomer-kyc:
+	@echo 'Updating KYC status for customer id=1 to Approved (kyc_status_id=2)...'
+	curl -i -X PATCH http://localhost:4000/api/customers/1/kyc-status \
+	-H "Content-Type: application/json" \
+	-d '{"kyc_status_id":2}'
+
+.PHONY: deletecustomer
+deletecustomer:
+	@echo 'Deleting customer with id=1...'
+	curl -i -X DELETE http://localhost:4000/api/customers/1
+
+# Full test flow for customer endpoints
+.PHONY: testcustomer-flow
+testcustomer-flow:
+	@echo '--- Creating customer ---'
+	$(MAKE) createcustomer
+	@echo '\n--- Getting all customers ---'
+	$(MAKE) getcustomers
+	@echo '\n--- Getting customer by id ---'
+	$(MAKE) getcustomer-id
+	@echo '\n--- Updating customer KYC status ---'
+	$(MAKE) updatecustomer-kyc
+	@echo '\n--- Deleting customer ---'
+	$(MAKE) deletecustomer
+	@echo '\n--- Getting all customers after delete ---'
+	$(MAKE) getcustomers
+
+# ACCOUNT ROUTE TESTS
+.PHONY: getaccounts
+getaccounts:
+	@echo 'Getting all accounts...'
+	curl -i http://localhost:4000/api/accounts
+
+.PHONY: getaccounts-custom
+getaccounts-custom:
+	@echo 'Getting first page of accounts, 10 per page, sorted by created_at desc'
+	curl -i "http://localhost:4000/api/accounts?page=1&page_size=10&sort=-created_at"
+
+.PHONY: createaccount
+createaccount:
+	@echo 'Creating a new account (adjust fields as needed)...'
+	curl -i -X POST http://localhost:4000/api/accounts \
+	-H "Content-Type: application/json" \
+	-d '{"account_number":"10000001","branch_id_opened_at":1,"account_type_id":1,"gl_account_id":1,"status":"active","opened_at":"2026-03-23T00:00:00Z"}'
+
+.PHONY: getaccount-id
+getaccount-id:
+	@echo 'Getting account with id=1...'
+	curl -i http://localhost:4000/api/accounts/1
+
+.PHONY: deleteaccount
+deleteaccount:
+	@echo 'Deleting account with id=1...'
+	curl -i -X DELETE http://localhost:4000/api/accounts/1
+
+# ACCOUNT OWNERSHIP ROUTE TESTS
+.PHONY: createaccountownership
+createaccountownership:
+	@echo 'Creating account ownership for customer_id=1 and account_id=1...'
+	curl -i -X POST http://localhost:4000/api/account-ownerships \
+	-H "Content-Type: application/json" \
+	-d '{"customer_id":1,"account_id":1,"is_joint_account":false}'
+
+# Full test flow for account endpoints
+.PHONY: testaccount-flow
+testaccount-flow:
+	@echo '--- Creating account ---'
+	$(MAKE) createaccount
+	@echo '\n--- Getting all accounts ---'
+	$(MAKE) getaccounts
+	@echo '\n--- Getting account by id ---'
+	$(MAKE) getaccount-id
+	@echo '\n--- Creating account ownership ---'
+	$(MAKE) createaccountownership
+	@echo '\n--- Deleting account ---'
+	$(MAKE) deleteaccount
+	@echo '\n--- Getting all accounts after delete ---'
+	$(MAKE) getaccounts

@@ -7,12 +7,18 @@ import (
 
 type Models struct {
 	Persons         PersonModel
+	Customers       CustomerModel
+	Accounts        AccountModel
+	AccountOwnerships AccountOwnershipModel
 }
 
 func (m Models) NewModels(db *sql.DB) Models {
-	return Models{
-		Persons: PersonModel{DB: db},
-	}
+   return Models{
+	   Persons:   PersonModel{DB: db},
+	   Customers: CustomerModel{DB: db},
+	   Accounts:  AccountModel{DB: db},
+	   AccountOwnerships: AccountOwnershipModel{DB: db},
+   }
 }
 
 // ErrRecordNotFound is returned when a database query does not find a matching record
