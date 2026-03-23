@@ -1,3 +1,15 @@
+package handlers
+
+import (
+	"net/http"
+	"strconv"
+	"github.com/julienschmidt/httprouter"
+	"github.com/spector-asael/banking-api/cmd/api/dependencies/helpers"
+	"github.com/spector-asael/banking-api/internal/data"
+	"github.com/spector-asael/banking-api/internal/validator"
+	"time"
+)
+
 // PATCH /accounts/:id
 func (a *HandlerDependencies) updateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
@@ -60,17 +72,6 @@ func (a *HandlerDependencies) updateAccountHandler(w http.ResponseWriter, r *htt
 		a.Helper.ServerErrorResponse(w, r, err)
 	}
 }
-package handlers
-
-import (
-	"net/http"
-	"strconv"
-	"github.com/julienschmidt/httprouter"
-	"github.com/spector-asael/banking-api/cmd/api/dependencies/helpers"
-	"github.com/spector-asael/banking-api/internal/data"
-	"github.com/spector-asael/banking-api/internal/validator"
-	"time"
-)
 
 // GET /accounts
 func (a *HandlerDependencies) getAllAccountsHandler(w http.ResponseWriter, r *http.Request) {

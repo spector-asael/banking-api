@@ -10,6 +10,9 @@ type Models struct {
 	Customers       CustomerModel
 	Accounts        AccountModel
 	AccountOwnerships AccountOwnershipModel
+	JournalEntries   JournalEntryModel
+	LedgerEntries    LedgerEntryModel
+	AccountTransactions AccountTransactionModel
 }
 
 func (m Models) NewModels(db *sql.DB) Models {
@@ -18,6 +21,9 @@ func (m Models) NewModels(db *sql.DB) Models {
 	   Customers: CustomerModel{DB: db},
 	   Accounts:  AccountModel{DB: db},
 	   AccountOwnerships: AccountOwnershipModel{DB: db},
+	   JournalEntries: JournalEntryModel{DB: db},
+	   LedgerEntries: LedgerEntryModel{DB: db},
+	   AccountTransactions: AccountTransactionModel{DB: db},
    }
 }
 

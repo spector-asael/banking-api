@@ -40,7 +40,13 @@ func (a *HandlerDependencies) Routes() http.Handler  {
   router.HandlerFunc(http.MethodPost, "/api/accounts", a.createAccountHandler)                  // Create a new account
   router.HandlerFunc(http.MethodGet, "/api/accounts/:id", a.getAccountByIDHandler)              // Get an account by ID
   router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", a.updateAccountHandler)             // Update an account
-  router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", a.deleteAccountHandler)             // Delete an account
+  router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", a.deleteAccountHandler)            // Delete an account
+
+  // Deposit route
+  router.HandlerFunc(http.MethodPost, "/api/deposits", a.HandleDeposit) // Make a deposit
+
+  // Transfer route
+  router.HandlerFunc(http.MethodPost, "/api/transfers", a.HandleTransfer) // Make a transfer
     
   gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(router)
   gzipResponseMiddleware := middlewareInstance.GzipResponseMiddleware(gzipRequestMiddleware)

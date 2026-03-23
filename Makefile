@@ -182,3 +182,11 @@ testaccount-flow:
 	$(MAKE) deleteaccount
 	@echo '\n--- Getting all accounts after delete ---'
 	$(MAKE) getaccounts
+
+# DEPOSIT ROUTE TESTS
+.PHONY: createdeposit
+createdeposit:
+	@echo 'Creating a deposit for account_id=1 (adjust fields as needed)...'
+	curl -i -X POST http://localhost:4000/api/deposits \
+	-H "Content-Type: application/json" \
+	-d '{"account_id":1,"amount":100.00,"description":"Test deposit"}'
