@@ -3,7 +3,7 @@ package data
 import (
     "database/sql"
     "time"
-    //"github.com/spector-asael/banking-api/internal/validator"
+
 )
 
 type AccountTransaction struct {
@@ -39,4 +39,12 @@ func (m AccountTransactionModel) Insert(tx *AccountTransaction) error {
         return err
     }
     return nil
+}
+
+// Fixed: Added EntryType so the rows.Scan has a place to put the 'ledger'/'loan' strings
+type TransactionHistory struct {
+    Amount      float64   `json:"amount"`
+    Description string    `json:"description"`
+    CreatedAt   time.Time `json:"created_at"`
+    EntryType   string    `json:"entry_type"` 
 }

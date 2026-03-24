@@ -6,7 +6,7 @@ import (
   "net/http"
   "github.com/julienschmidt/httprouter"
   "github.com/spector-asael/banking-api/cmd/api/dependencies/middleware"
-  // "expvar"
+  "expvar"
 )
 
 func (a *HandlerDependencies) Routes() http.Handler  {
@@ -20,7 +20,6 @@ func (a *HandlerDependencies) Routes() http.Handler  {
   // router.NotFound = http.HandlerFunc(a.notFoundResponse)
   // router.MethodNotAllowed = http.HandlerFunc(a.methodNotAllowedResponse)
   // setup routes
-
   // Persons routes
   router.HandlerFunc(http.MethodGet, "/api/persons", a.getAllPersonsHandler)                   // Get all persons
   router.HandlerFunc(http.MethodPost, "/api/persons", a.createPersonHandler)                   // Create a new person
@@ -49,19 +48,21 @@ func (a *HandlerDependencies) Routes() http.Handler  {
 
   // Transfer route
   router.HandlerFunc(http.MethodPost, "/api/transfers", a.HandleTransfer) // Make a transfer
+
+  router.HandlerFunc(http.MethodPost, "/api/loans", a.CreateLoanHandler)
+  router.HandlerFunc(http.MethodPost, "/api/loans/payments", a.CreateLoanPaymentHandler)
+
+  router.Handler(http.MethodGet, "/api/observability/metrics", expvar.Handler())
     
   gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(router)
   gzipResponseMiddleware := middlewareInstance.GzipResponseMiddleware(gzipRequestMiddleware)
-	loggingMiddleware := middlewareInstance.LoggingMiddleware(gzipResponseMiddleware)
-	rateLimitMiddleware := middlewareInstance.RateLimit(loggingMiddleware)
-  corsMiddleware := middlewareInstance.EnableCORS(rateLimitMiddleware)
-  metricsMiddleware := middlewareInstance.MetricsMiddleware(corsMiddleware)
-	panicMiddleware := middlewareInstance.RecoverPanic(metricsMiddleware)
+  corsMiddleware := middlewareInstance.EnableCORS(gzipResponseMiddleware)
+  rateLimitMiddleware := middlewareInstance.RateLimit(corsMiddleware)
+  loggingMiddleware := middlewareInstance.LoggingMiddleware(rateLimitMiddleware)
+  metricsMiddleware := middlewareInstance.MetricsMiddleware(loggingMiddleware)
+  panicMiddleware := middlewareInstance.RecoverPanic(metricsMiddleware)
 
-
-  // Request sent first to recoverPanic() then sent to rateLimit()
-  // finally it is sent to the router.
-	
+  // Chain: panic -> metrics -> logging -> rateLimit -> cors -> gzip -> router
   return panicMiddleware
   
 }

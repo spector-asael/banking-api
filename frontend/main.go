@@ -24,8 +24,9 @@ func main() {
 	//http.HandleFunc("/accounts/edit", editAccountHandler)
 	// http.HandleFunc("/customers", customersHandler)
 	http.HandleFunc("/deposits", makeDepositHandler)
-	// http.HandleFunc("/withdrawals", withdrawalsHandler)
-	// http.HandleFunc("/loans", loansHandler)
+	http.HandleFunc("/withdrawals", makeWithdrawalHandler)
+	http.HandleFunc("/transfers", makeTransferHandler)
+	http.HandleFunc("/loans", loansHandler)
 	log.Println("Frontend running at http://localhost:9000/")
 	if err := http.ListenAndServe(":9000", nil); err != nil {
 		log.Fatal(err)

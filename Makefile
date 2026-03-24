@@ -12,13 +12,18 @@ run:
 	-db-dsn="${BANK_DB_DSN}" \
 	-env=development -limiter-rps=2 \
 	-limiter-burst=5 \
-	-limiter-enabled=false \
+	-limiter-enabled=true \
 	-cors-trusted-origins="http://localhost:9000 http://localhost:9000"
 
 ## db/psql: Connect to the banking database using psql
 .PHONY: db
 db:
 	psql ${BANK_DB_DSN}
+
+
+.PHONY: test-persons
+test-persons:
+	@bash -c 'for i in {1..20}; do curl -X GET http://localhost:4000/api/persons; done'
 
 ## db/migrations/new name=$1: Create a new database migration
 .PHONY: migrations/new
@@ -43,12 +48,6 @@ migrations/down:
 migrations/fix:
 	@echo 'Forcing schema migrations version to ${version}...'
 	migrate -path ./migrations -database ${BANK_DB_DSN} force ${version}
-
-
-.PHONY: testroute 
-testroute:
-	@echo 'Testing test route...'
-	curl -i http://localhost:4000/test
 
 .PHONY: getpersons
 # Get all persons (default page=1, page_size=5, sort=id)
@@ -85,6 +84,11 @@ getperson-ssid:
 getcustomers:
 	@echo 'Getting all customers...'
 	curl -i http://localhost:4000/api/customers
+
+.PHONY: getcustomers-gzip
+getcustomers-gzip:
+	@echo 'Getting all customers with gzip encoding...'
+	curl -i -H "Accept-Encoding: gzip" --compressed http://localhost:4000/api/customers
 
 .PHONY: getcustomers-custom
 getcustomers-custom:

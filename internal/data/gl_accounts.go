@@ -55,3 +55,26 @@ func ValidateGLAccount(v *validator.Validator, gl *GLAccount) {
 	v.Check(gl.CategoryID > 0, "category_id", "must be provided and valid")
 }
 
+func (m GLAccountModel) GetByAccountNumber(accountNumber string) (*GLAccount, error) {
+    // We select only the fields that exist in your GLAccount struct
+    query := `SELECT id, account_number, name, category_id, is_active, created_at 
+              FROM gl_accounts 
+              WHERE account_number = $1`
+              
+    var gl GLAccount
+    ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+    defer cancel()
+
+    err := m.DB.QueryRowContext(ctx, query, accountNumber).Scan(
+        &gl.ID, 
+        &gl.AccountNumber, 
+        &gl.Name, 
+        &gl.CategoryID, 
+        &gl.IsActive, 
+        &gl.CreatedAt,
+    )
+    if err != nil {
+        return nil, err
+    }
+    return &gl, nil
+}
