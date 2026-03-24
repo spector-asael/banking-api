@@ -2,30 +2,22 @@
 # Asael Tobar
 # March 19th 2026
 
-# Pass in the .envrc file, which exports BANK_DB_DSN
+
+# Import environment variables from .envrc
 include .envrc
 
-## run: run the cmd/api application
+## db/psql: Connect to the banking database using psql
+.PHONY: db
+
 run: 
 	@echo 'Running application...'
 	@go run ./cmd/api \
 	-db-dsn="${BANK_DB_DSN}" \
-	-env=development -limiter-rps=2 \
-	-limiter-burst=5 \
+	-env=development \
+	-limiter-rps=${RPS} \
+	-limiter-burst=${BURST} \
 	-limiter-enabled=true \
-	-cors-trusted-origins="http://localhost:9000 http://localhost:9000"
-
-## db/psql: Connect to the banking database using psql
-.PHONY: db
-db:
-	psql ${BANK_DB_DSN}
-
-
-.PHONY: test-persons
-test-persons:
-	@bash -c 'for i in {1..20}; do curl -X GET http://localhost:4000/api/persons; done'
-
-## db/migrations/new name=$1: Create a new database migration
+	-cors-trusted-origins=${CORS_TRUSTED_ORIGINS}
 .PHONY: migrations/new
 migrations/new:
 	@echo 'Creating migration files for ${name}...'
@@ -86,9 +78,28 @@ getcustomers:
 	curl -i http://localhost:4000/api/customers
 
 .PHONY: getcustomers-gzip
-getcustomers-gzip:
+getcustomers-uncompressed:
 	@echo 'Getting all customers with gzip encoding...'
 	curl -i -H "Accept-Encoding: gzip" --compressed http://localhost:4000/api/customers
+
+getcustomers-gzip:
+	@echo 'Getting all customers with gzip encoding...'
+	curl -i -H "Accept-Encoding: gzip" http://localhost:4000/api/customers --output response.gz
+
+getcustomers-nogzip:
+	@echo 'Getting all customers with gzip encoding...'
+	curl -i http://localhost:4000/api/customers --output response.gz
+
+loop-create:
+	@echo "Creating multiple persons..."
+	@for i in $$(seq 1 20); do \
+		curl -s -i GET http://localhost:4000/api/persons \
+		-H "Content-Type: application/json"; \
+	done
+
+getcustomers-compressed:
+	@echo 'Getting all customers with gzip encoding...'
+	curl -i -H "Accept-Encoding: gzip" http://localhost:4000/api/customers
 
 .PHONY: getcustomers-custom
 getcustomers-custom:
@@ -119,22 +130,6 @@ deletecustomer:
 	@echo 'Deleting customer with id=1...'
 	curl -i -X DELETE http://localhost:4000/api/customers/1
 
-# Full test flow for customer endpoints
-.PHONY: testcustomer-flow
-testcustomer-flow:
-	@echo '--- Creating customer ---'
-	$(MAKE) createcustomer
-	@echo '\n--- Getting all customers ---'
-	$(MAKE) getcustomers
-	@echo '\n--- Getting customer by id ---'
-	$(MAKE) getcustomer-id
-	@echo '\n--- Updating customer KYC status ---'
-	$(MAKE) updatecustomer-kyc
-	@echo '\n--- Deleting customer ---'
-	$(MAKE) deletecustomer
-	@echo '\n--- Getting all customers after delete ---'
-	$(MAKE) getcustomers
-
 # ACCOUNT ROUTE TESTS
 .PHONY: getaccounts
 getaccounts:
@@ -158,34 +153,6 @@ getaccount-id:
 	@echo 'Getting account with id=1...'
 	curl -i http://localhost:4000/api/accounts/1
 
-.PHONY: deleteaccount
-deleteaccount:
-	@echo 'Deleting account with id=1...'
-	curl -i -X DELETE http://localhost:4000/api/accounts/1
-
-# ACCOUNT OWNERSHIP ROUTE TESTS
-.PHONY: createaccountownership
-createaccountownership:
-	@echo 'Creating account ownership for customer_id=1 and account_id=1...'
-	curl -i -X POST http://localhost:4000/api/account-ownerships \
-	-H "Content-Type: application/json" \
-	-d '{"customer_id":1,"account_id":1,"is_joint_account":false}'
-
-# Full test flow for account endpoints
-.PHONY: testaccount-flow
-testaccount-flow:
-	@echo '--- Creating account ---'
-	$(MAKE) createaccount
-	@echo '\n--- Getting all accounts ---'
-	$(MAKE) getaccounts
-	@echo '\n--- Getting account by id ---'
-	$(MAKE) getaccount-id
-	@echo '\n--- Creating account ownership ---'
-	$(MAKE) createaccountownership
-	@echo '\n--- Deleting account ---'
-	$(MAKE) deleteaccount
-	@echo '\n--- Getting all accounts after delete ---'
-	$(MAKE) getaccounts
 
 # DEPOSIT ROUTE TESTS
 .PHONY: createdeposit

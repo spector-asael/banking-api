@@ -52,17 +52,16 @@ func (a *HandlerDependencies) Routes() http.Handler  {
   router.HandlerFunc(http.MethodPost, "/api/loans", a.CreateLoanHandler)
   router.HandlerFunc(http.MethodPost, "/api/loans/payments", a.CreateLoanPaymentHandler)
 
-  router.Handler(http.MethodGet, "/api/observability/metrics", expvar.Handler())
+  router.Handler(http.MethodGet, "/api/metrics", expvar.Handler())
     
   gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(router)
   gzipResponseMiddleware := middlewareInstance.GzipResponseMiddleware(gzipRequestMiddleware)
-  corsMiddleware := middlewareInstance.EnableCORS(gzipResponseMiddleware)
-  rateLimitMiddleware := middlewareInstance.RateLimit(corsMiddleware)
+  rateLimitMiddleware := middlewareInstance.RateLimit(gzipResponseMiddleware)
   loggingMiddleware := middlewareInstance.LoggingMiddleware(rateLimitMiddleware)
   metricsMiddleware := middlewareInstance.MetricsMiddleware(loggingMiddleware)
-  panicMiddleware := middlewareInstance.RecoverPanic(metricsMiddleware)
+  corsMiddleware := middlewareInstance.EnableCORS(metricsMiddleware)
+  panicMiddleware := middlewareInstance.RecoverPanic(corsMiddleware)
 
-  // Chain: panic -> metrics -> logging -> rateLimit -> cors -> gzip -> router
   return panicMiddleware
   
 }
