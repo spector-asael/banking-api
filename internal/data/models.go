@@ -14,6 +14,7 @@ type Models struct {
 	LedgerEntries    LedgerEntryModel
 	AccountTransactions AccountTransactionModel
 	Loans LoanModel
+	GLAccounts GLAccountModel
 }
 
 func (m Models) NewModels(db *sql.DB) Models {
@@ -26,6 +27,7 @@ func (m Models) NewModels(db *sql.DB) Models {
 	   LedgerEntries: LedgerEntryModel{DB: db},
 	   AccountTransactions: AccountTransactionModel{DB: db},
 	   Loans: LoanModel{DB: db},
+	   GLAccounts: GLAccountModel{DB: db},
    }
 }
 

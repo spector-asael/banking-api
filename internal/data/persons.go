@@ -81,9 +81,9 @@ func ValidatePerson(v *validator.Validator, p *Person) {
 	emailRX := regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 	v.Check(emailRX.MatchString(p.Email), "email", "must be a valid email address")
 
-	// Phone number (exactly 10 digits)
-	phoneRX := regexp.MustCompile(`^\d{10}$`)
-	v.Check(phoneRX.MatchString(p.PhoneNumber), "phone_number", "must be a valid 10-digit number")
+	// Phone number (at least 7 digits)
+	phoneRX := regexp.MustCompile(`^\d{7,}$`)
+	v.Check(phoneRX.MatchString(p.PhoneNumber), "phone_number", "must be at least 7 digits")
 
 	// SSN basic check (you can refine later)
 	v.Check(len(p.SocialSecurityNumber) >= 5, "social_security_number", "must be a valid SSN")

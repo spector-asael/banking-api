@@ -102,20 +102,20 @@ func (a *HandlerDependencies) getAllAccountsHandler(w http.ResponseWriter, r *ht
 	}
 }
 
-// POST /accounts
 // Input struct for account creation with SSID
 type createAccountInput struct {
-	AccountNumber   string    `json:"account_number"`
-	BranchID        int64     `json:"branch_id_opened_at"`
-	AccountTypeID   int64     `json:"account_type_id"`
-	GLAccountID     int64     `json:"gl_account_id"`
-	Status          string    `json:"status"`
-	OpenedAt        string    `json:"opened_at"`
-	ClosedAt        *string   `json:"closed_at,omitempty"`
-	SSID            string    `json:"social_security_number"`
-	IsJointAccount  bool      `json:"is_joint_account"`
+	AccountNumber   string  `json:"account_number"`
+	BranchID        int64   `json:"branch_id_opened_at"`
+	AccountTypeID   int64   `json:"account_type_id"`
+	// Note: GLAccountID has been removed since the backend generates it!
+	Status          string  `json:"status"`
+	OpenedAt        string  `json:"opened_at"`
+	ClosedAt        *string `json:"closed_at,omitempty"`
+	SSID            string  `json:"social_security_number"`
+	IsJointAccount  bool    `json:"is_joint_account"`
 }
 
+// POST /accounts
 func (a *HandlerDependencies) createAccountHandler(w http.ResponseWriter, r *http.Request) {
 	var input createAccountInput
 	err := a.Helper.ReadJSON(w, r, &input)
@@ -123,18 +123,19 @@ func (a *HandlerDependencies) createAccountHandler(w http.ResponseWriter, r *htt
 		a.Helper.BadRequestResponse(w, r, err)
 		return
 	}
+
 	// Validate account fields
 	v := validator.New()
 	v.Check(input.AccountNumber != "", "account_number", "must be provided")
 	v.Check(input.BranchID > 0, "branch_id_opened_at", "must be provided and valid")
 	v.Check(input.AccountTypeID > 0, "account_type_id", "must be provided and valid")
-	v.Check(input.GLAccountID > 0, "gl_account_id", "must be provided and valid")
 	v.Check(input.Status != "", "status", "must be provided")
 	v.Check(input.SSID != "", "social_security_number", "must be provided")
 	if !v.IsEmpty() {
 		a.Helper.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
+
 	// Parse opened_at and closed_at
 	openedAt, err := time.Parse(time.RFC3339, input.OpenedAt)
 	if err != nil {
@@ -150,28 +151,47 @@ func (a *HandlerDependencies) createAccountHandler(w http.ResponseWriter, r *htt
 		}
 		closedAtPtr = &t
 	}
+
 	// Lookup person by SSID
 	person, err := a.Models.Persons.GetBySSID(input.SSID)
 	if err != nil {
 		a.Helper.FailedValidationResponse(w, r, map[string]string{"social_security_number": "person not found"})
 		return
 	}
+
 	// Lookup customer by person ID
 	customer, err := a.Models.Customers.GetByID(person.ID)
 	if err != nil {
 		a.Helper.FailedValidationResponse(w, r, map[string]string{"customer": "customer for this person not found"})
 		return
 	}
-	// Create account
+
+	// --- 1. CREATE THE GENERAL LEDGER ACCOUNT ---
+	glAccount := data.GLAccount{
+		AccountNumber: "GL-" + input.AccountNumber,
+		Name:          "Customer Liability - " + input.SSID,
+		CategoryID:    2, // 2 = Liability (Customer Deposits)
+		IsActive:      true,
+	}
+
+	err = a.Models.GLAccounts.Insert(&glAccount)
+	if err != nil {
+		// You can add a specific check here for data.ErrDuplicateGLAccount if needed later
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// --- 2. CREATE THE BANK ACCOUNT ---
 	account := data.Account{
 		AccountNumber: input.AccountNumber,
-		BranchID:      input.BranchID,
+		BranchIDOpenedAt: input.BranchID,
 		AccountTypeID: input.AccountTypeID,
-		GLAccountID:   input.GLAccountID,
+		GLAccountID:   glAccount.ID, // Link the newly created GL Account
 		Status:        input.Status,
 		OpenedAt:      openedAt,
 		ClosedAt:      closedAtPtr,
 	}
+	
 	err = a.Models.Accounts.Insert(&account)
 	if err != nil {
 		if err == data.ErrDuplicateAccount {
@@ -181,7 +201,8 @@ func (a *HandlerDependencies) createAccountHandler(w http.ResponseWriter, r *htt
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
-	// Assign ownership
+
+	// --- 3. ASSIGN OWNERSHIP ---
 	ownership := data.AccountOwnership{
 		CustomerID:     customer.ID,
 		AccountID:      account.ID,
@@ -196,6 +217,7 @@ func (a *HandlerDependencies) createAccountHandler(w http.ResponseWriter, r *htt
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
+
 	// Respond with account and ownership
 	err = a.Helper.WriteJSON(w, http.StatusCreated, helpers.Envelope{"account": account, "ownership": ownership}, nil)
 	if err != nil {
@@ -237,6 +259,15 @@ func (a *HandlerDependencies) deleteAccountHandler(w http.ResponseWriter, r *htt
 		a.Helper.FailedValidationResponse(w, r, map[string]string{"id": "must be a valid integer"})
 		return
 	}
+
+	// 1. First, delete the ownership records referencing this account
+	err = a.Models.AccountOwnerships.DeleteByAccountID(id)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// 2. Now it is safe to delete the account itself
 	err = a.Models.Accounts.Delete(id)
 	if err != nil {
 		switch {
@@ -247,5 +278,6 @@ func (a *HandlerDependencies) deleteAccountHandler(w http.ResponseWriter, r *htt
 		}
 		return
 	}
+
 	a.Helper.WriteJSON(w, http.StatusOK, helpers.Envelope{"message": "account deleted successfully"}, nil)
 }

@@ -57,10 +57,10 @@ getpersons:
 	curl -i http://localhost:4000/api/persons
 
 .PHONY: getpersons-custom
-# Get first page, 10 per page, sorted by last_name descending
+# Get first page, 5 per page, sorted by last_name descending
 getpersons-custom:
-	@echo 'Getting first page of persons, 10 per page, sorted by last_name'
-	curl -i "http://localhost:4000/api/persons?page=1&page_size=10&sort=-last_name"
+	@echo 'Getting first page of persons, 5 per page, sorted by last_name'
+	curl -i "http://localhost:4000/api/persons?page=1&page_size=5&sort=-last_name"
 
 
 .PHONY: getpersons-filter

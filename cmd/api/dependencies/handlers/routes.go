@@ -45,6 +45,8 @@ func (a *HandlerDependencies) Routes() http.Handler  {
   // Deposit route
   router.HandlerFunc(http.MethodPost, "/api/deposits", a.HandleDeposit) // Make a deposit
 
+  router.HandlerFunc(http.MethodPost, "/api/withdrawals", a.HandleWithdrawal) // Make a withdrawal
+
   // Transfer route
   router.HandlerFunc(http.MethodPost, "/api/transfers", a.HandleTransfer) // Make a transfer
     

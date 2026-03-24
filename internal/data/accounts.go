@@ -11,7 +11,7 @@ import (
 type Account struct {
 	ID              int64     `json:"id"`
 	AccountNumber   string    `json:"account_number"`
-	BranchID        int64     `json:"branch_id_opened_at"`
+	BranchIDOpenedAt        int64     `json:"branch_id_opened_at"`
 	AccountTypeID   int64     `json:"account_type_id"`
 	GLAccountID     int64     `json:"gl_account_id"`
 	Status          string    `json:"status"`
@@ -29,7 +29,7 @@ type AccountModel struct {
 // Validation for Account
 func ValidateAccount(v *validator.Validator, a *Account) {
 	v.Check(a.AccountNumber != "", "account_number", "must be provided")
-	v.Check(a.BranchID > 0, "branch_id_opened_at", "must be provided and valid")
+	v.Check(a.BranchIDOpenedAt > 0, "branch_id_opened_at", "must be provided and valid")
 	v.Check(a.AccountTypeID > 0, "account_type_id", "must be provided and valid")
 	v.Check(a.GLAccountID > 0, "gl_account_id", "must be provided and valid")
 	v.Check(a.Status != "", "status", "must be provided")
@@ -47,7 +47,7 @@ func (m AccountModel) Insert(account *Account) error {
 	defer cancel()
 	err := m.DB.QueryRowContext(ctx, query,
 		account.AccountNumber,
-		account.BranchID,
+		account.BranchIDOpenedAt,
 		account.AccountTypeID,
 		account.GLAccountID,
 		account.Status,
@@ -69,7 +69,7 @@ func (m AccountModel) GetByID(id int64) (*Account, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	err := m.DB.QueryRowContext(ctx, query, id).Scan(
-		&a.ID, &a.AccountNumber, &a.BranchID, &a.AccountTypeID, &a.GLAccountID, &a.Status, &a.OpenedAt, &a.ClosedAt, &a.CreatedAt, &a.UpdatedAt,
+		&a.ID, &a.AccountNumber, &a.BranchIDOpenedAt, &a.AccountTypeID, &a.GLAccountID, &a.Status, &a.OpenedAt, &a.ClosedAt, &a.CreatedAt, &a.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -95,7 +95,7 @@ func (m AccountModel) GetAll(filters Filters) ([]*Account, Metadata, error) {
 	accounts := []*Account{}
 	for rows.Next() {
 		var a Account
-		if err := rows.Scan(&totalRecords, &a.ID, &a.AccountNumber, &a.BranchID, &a.AccountTypeID, &a.GLAccountID, &a.Status, &a.OpenedAt, &a.ClosedAt, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&totalRecords, &a.ID, &a.AccountNumber, &a.BranchIDOpenedAt, &a.AccountTypeID, &a.GLAccountID, &a.Status, &a.OpenedAt, &a.ClosedAt, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			return nil, Metadata{}, err
 		}
 		accounts = append(accounts, &a)
@@ -127,4 +127,36 @@ func (m AccountModel) Update(account *Account) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	return m.DB.QueryRowContext(ctx, query, account.Status, account.ClosedAt, account.ID).Scan(&account.UpdatedAt)
+}
+
+// GetByAccountNumber retrieves an account using its string account number
+func (m AccountModel) GetByAccountNumber(accountNumber string) (*Account, error) {
+	// CHANGED: branch_id is now branch_id_opened_at
+	query := `SELECT id, account_number, branch_id_opened_at, account_type_id, gl_account_id, status, opened_at, closed_at 
+              FROM accounts 
+              WHERE account_number = $1`
+
+	var account Account
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, accountNumber).Scan(
+		&account.ID,
+		&account.AccountNumber,
+		&account.BranchIDOpenedAt, // CHANGED: Make sure this matches the field in your Account struct!
+		&account.AccountTypeID,
+		&account.GLAccountID,
+		&account.Status,
+		&account.OpenedAt,
+		&account.ClosedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrRecordNotFound
+		}
+		return nil, err
+	}
+
+	return &account, nil
 }

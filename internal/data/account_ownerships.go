@@ -63,3 +63,14 @@ func (m AccountOwnershipModel) GetAllByAccount(accountID int64) ([]*AccountOwner
 	}
 	return ownerships, nil
 }
+
+// DeleteByAccountID removes all ownership records associated with a specific account
+func (m AccountOwnershipModel) DeleteByAccountID(accountID int64) error {
+	query := `DELETE FROM account_ownerships WHERE account_id = $1`
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	_, err := m.DB.ExecContext(ctx, query, accountID)
+	return err
+}
+
