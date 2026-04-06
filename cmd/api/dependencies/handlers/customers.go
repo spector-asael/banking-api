@@ -172,6 +172,15 @@ func (a *HandlerDependencies) createCustomerHandler(w http.ResponseWriter, r *ht
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
+	// Send the email as a Goroutine. We do this because it might take a long time
+	// and we don't want our handler to wait for that to finish. We will implement
+	// the background() function later
+	a.Helper.Background(func() {
+		err = a.Mailer.Send(user.Email, "user_welcome.tmpl", user)
+		if err != nil {
+			a.Logger.Error(err.Error())
+		}
+	})
 
 	// Response
 	err = a.Helper.WriteJSON(w, http.StatusCreated, helpers.Envelope{

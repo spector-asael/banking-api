@@ -13,13 +13,17 @@ db:
 
 run: 
 	@echo 'Running application...'
-	@go run ./cmd/api \
+	@GODEBUG=netdns=cgo go run ./cmd/api \
 	-db-dsn="${BANK_DB_DSN}" \
 	-env=development \
 	-limiter-rps=${RPS} \
 	-limiter-burst=${BURST} \
 	-limiter-enabled=true \
-	-cors-trusted-origins=${CORS_TRUSTED_ORIGINS}
+	-cors-trusted-origins=${CORS_TRUSTED_ORIGINS} \
+	-smtp-host=${SMTP_HOST} \
+	-smtp-port=${SMTP_PORT} \
+	-smtp-username=${SMTP_USERNAME} \
+	-smtp-password=${SMTP_PASSWORD} \
 .PHONY: migrations/new
 migrations/new:
 	@echo 'Creating migration files for ${name}...'
