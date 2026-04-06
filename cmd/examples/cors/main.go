@@ -2,11 +2,12 @@
 package main
 
 import (
-    "flag"
-    "log"
-    "net/http"
+	"flag"
+	"log"
+	"net/http"
 )
-// create a simple HTML page with some JS added. Obviously in a professional 
+
+// create a simple HTML page with some JS added. Obviously in a professional
 // setting, we would have the JS code in a script file
 const html = `
 <!DOCTYPE html>
@@ -36,13 +37,13 @@ function(err) {
 
 // A very simple HTTP server
 func main() {
-    addr := flag.String("addr", ":8000", "Server address")
-    flag.Parse()
+	addr := flag.String("addr", ":8000", "Server address")
+	flag.Parse()
 
-    log.Printf("starting server on %s", *addr)
-    err := http.ListenAndServe(*addr, 
-           http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-              w.Write([]byte(html))
-       }))
-    log.Fatal(err)
+	log.Printf("starting server on %s", *addr)
+	err := http.ListenAndServe(*addr,
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(html))
+		}))
+	log.Fatal(err)
 }

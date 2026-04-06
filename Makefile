@@ -8,6 +8,8 @@ include .envrc
 
 ## db/psql: Connect to the banking database using psql
 .PHONY: db
+db:
+	psql ${BANK_DB_DSN}
 
 run: 
 	@echo 'Running application...'
