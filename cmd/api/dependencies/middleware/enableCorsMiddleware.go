@@ -1,22 +1,15 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 )
 
 func (a *MiddlewareDependencies) EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// DEBUG: Print to stdout to confirm middleware is running
-		fmt.Println("[CORS Middleware] Executed for:", r.Method, r.URL.Path, "Origin:", r.Header.Get("Origin"))
+
 		w.Header().Add("Vary", "Origin")
 		w.Header().Add("Vary", "Access-Control-Request-Method")
 		w.Header().Add("Vary", "Access-Control-Request-Headers")
-
-		// Debug: log the incoming Origin header
-		if a.Logger != nil {
-			a.Logger.Info("CORS Debug: Incoming request", "Origin", r.Header.Get("Origin"), "Method", r.Method, "URL", r.URL.Path)
-		}
 
 		origin := r.Header.Get("Origin")
 		if origin != "" {
@@ -34,10 +27,6 @@ func (a *MiddlewareDependencies) EnableCORS(next http.Handler) http.Handler {
 						} else {
 							w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type")
 						}
-						// Debug: log outgoing headers for preflight
-						if a.Logger != nil {
-							a.Logger.Info("CORS Debug: Preflight response headers", "Headers", w.Header())
-						}
 						w.WriteHeader(http.StatusOK)
 						return
 					}
@@ -45,12 +34,6 @@ func (a *MiddlewareDependencies) EnableCORS(next http.Handler) http.Handler {
 				}
 			}
 		}
-
-		// Debug: log outgoing headers for normal requests
-		if a.Logger != nil {
-			a.Logger.Info("CORS Debug: Normal response headers", "Headers", w.Header())
-		}
-
 		next.ServeHTTP(w, r)
 	})
 }

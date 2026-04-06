@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"net/http"
 	"strconv"
 )
@@ -149,24 +148,88 @@ var createCustomerTemplate = template.Must(template.New("createCustomer").Parse(
 <head>
     <title>Register Customer</title>
     <style>
-        body { font-family: Arial, sans-serif; background: #f8f8f8; }
+        body { font-family: Arial; background: #f8f8f8; }
         .container { max-width: 500px; margin: 60px auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 2px 8px #ccc; }
-        input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        button { width: 100%; padding: 12px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; }
-        .err { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+        button { width: 100%; padding: 12px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .err { color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 4px; margin-bottom: 10px; display:none; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Register New Customer</h1>
-        {{if .Error}}<div class="err">{{.Error}}</div>{{end}}
-        <form method="POST">
-            <label>Person SSID:</label>
-            <input type="text" name="ssid" placeholder="Enter SSID to link person" required autofocus>
-            <button type="submit">Link & Create Customer</button>
-        </form>
-        <a href="/customers" style="display:block; text-align:center; margin-top:20px; color: #666; text-decoration: none;">Cancel</a>
-    </div>
+<div class="container">
+    <h1>Register New Customer</h1>
+
+    <div class="err" id="errorBox"></div>
+
+    <form id="customerForm">
+        <label>Person SSID:</label>
+        <input type="text" name="ssid" required>
+
+        <label>Username:</label>
+        <input type="text" name="username" required>
+
+        <label>Email:</label>
+        <input type="email" name="email" required>
+
+        <label>Password:</label>
+        <input type="password" name="password" required>
+
+        <button type="submit">Create Customer</button>
+    </form>
+
+    <a href="/customers" style="display:block; text-align:center; margin-top:20px;">Cancel</a>
+</div>
+
+<script>
+document.getElementById("customerForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const errorBox = document.getElementById("errorBox");
+    errorBox.style.display = "none";
+    errorBox.innerHTML = "";
+
+    const data = {
+        ssid: document.querySelector('[name="ssid"]').value,
+        username: document.querySelector('[name="username"]').value,
+        email: document.querySelector('[name="email"]').value,
+        password: document.querySelector('[name="password"]').value
+    };
+
+    try {
+        const res = await fetch("http://localhost:4000/api/customers", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+            errorBox.style.display = "block";
+            if (result.errors) {
+                errorBox.innerHTML = Object.values(result.errors).join("<br>");
+            } else if (typeof result.error === "string") {
+                errorBox.innerText = result.error;
+            } else if (typeof result.error === "object" && result.error !== null) {
+                errorBox.innerHTML = Object.values(result.error).join("<br>");
+            } else {
+                errorBox.innerText = "Something went wrong";
+            }
+            return;
+        }
+
+        // Success
+        window.location.href = "/customers";
+
+    } catch (err) {
+        errorBox.style.display = "block";
+        errorBox.innerText = "Network error";
+    }
+});
+</script>
+
 </body>
 </html>
 `))
@@ -203,7 +266,9 @@ var updateKYCTemplate = template.Must(template.New("updateKYC").Parse(`
 func customersHandler(w http.ResponseWriter, r *http.Request) {
 	page := 1
 	if p := r.URL.Query().Get("page"); p != "" {
-		if val, err := strconv.Atoi(p); err == nil { page = val }
+		if val, err := strconv.Atoi(p); err == nil {
+			page = val
+		}
 	}
 
 	apiURL := fmt.Sprintf("http://localhost:4000/api/customers?page=%d&page_size=5", page)
@@ -245,42 +310,20 @@ func viewCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	var result struct { Customer Customer `json:"customer"` }
+	var result struct {
+		Customer Customer `json:"customer"`
+	}
 	json.NewDecoder(resp.Body).Decode(&result)
 	viewCustomerTemplate.Execute(w, result.Customer)
 }
 
 func createCustomerHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		createCustomerTemplate.Execute(w, nil)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	ssid := r.FormValue("ssid")
-	// Step 1: Lookup Person ID by SSID
-	personResp, err := http.Get("http://localhost:4000/api/persons/" + ssid)
-	if err != nil || personResp.StatusCode != http.StatusOK {
-		createCustomerTemplate.Execute(w, map[string]string{"Error": "Person with SSID " + ssid + " not found."})
-		return
-	}
-	defer personResp.Body.Close()
-
-	var personResult struct { Person struct { ID int64 `json:"id" `} `json:"person"` }
-	json.NewDecoder(personResp.Body).Decode(&personResult)
-
-	// Step 2: Post to Customer API
-	payload := map[string]int64{"person_id": personResult.Person.ID, "kyc_status_id": 1,}
-	buf := new(bytes.Buffer)
-	json.NewEncoder(buf).Encode(payload)
-
-	resp, _ := http.Post("http://localhost:4000/api/customers", "application/json", buf)
-	if resp.StatusCode != http.StatusCreated {
-		raw, _ := io.ReadAll(resp.Body)
-		createCustomerTemplate.Execute(w, map[string]string{"Error": string(raw)})
-		return
-	}
-
-	http.Redirect(w, r, "/customers", http.StatusSeeOther)
+	createCustomerTemplate.Execute(w, nil)
 }
 
 func updateKYCHandler(w http.ResponseWriter, r *http.Request) {
@@ -288,7 +331,9 @@ func updateKYCHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodGet {
 		resp, _ := http.Get("http://localhost:4000/api/customers/" + id)
-		var result struct { Customer Customer `json:"customer"` }
+		var result struct {
+			Customer Customer `json:"customer"`
+		}
 		json.NewDecoder(resp.Body).Decode(&result)
 		resp.Body.Close()
 		updateKYCTemplate.Execute(w, result.Customer)

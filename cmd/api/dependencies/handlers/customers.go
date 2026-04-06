@@ -1,8 +1,15 @@
 package handlers
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"time"
+
+	"context"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/spector-asael/banking-api/cmd/api/dependencies/helpers"
 	"github.com/spector-asael/banking-api/internal/data"
@@ -65,35 +72,112 @@ func (a *HandlerDependencies) getCustomerByIDHandler(w http.ResponseWriter, r *h
 
 // POST /customers
 func (a *HandlerDependencies) createCustomerHandler(w http.ResponseWriter, r *http.Request) {
-	var input data.Customer
+	// DEBUG: Log the incoming request body
+	defer r.Body.Close()
+	bodyBytes, _ := io.ReadAll(r.Body)
+	fmt.Printf("[DEBUG] Raw request body: %s\n", string(bodyBytes))
+	// Re-create the body for JSON decoding
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Input from JSON
+	var input struct {
+		SSID     string `json:"ssid"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
 	err := a.Helper.ReadJSON(w, r, &input)
 	if err != nil {
 		a.Helper.BadRequestResponse(w, r, err)
 		return
 	}
+	fmt.Printf("[DEBUG] Parsed input: %+v\n", input)
+
+	// Validate input
 	v := validator.New()
-	data.ValidateCustomer(v, &input)
+	v.Check(input.SSID != "", "ssid", "must be provided")
+	v.Check(input.Username != "", "username", "must be provided")
+	data.ValidateEmail(v, input.Email)
+	data.ValidatePasswordPlaintext(v, input.Password)
+
 	if !v.IsEmpty() {
+		fmt.Printf("[DEBUG] Validation errors: %+v\n", v.Errors)
 		a.Helper.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
-	// Check if person exists
-	_, err = a.Models.Persons.GetByID(input.PersonID)
+
+	// Lookup person by SSID
+	person, err := a.Models.Persons.GetBySSID(input.SSID)
 	if err != nil {
-		a.Helper.FailedValidationResponse(w, r, map[string]string{"person_id": "referenced person does not exist"})
+		a.Helper.FailedValidationResponse(w, r, map[string]string{"ssid": "person not found"})
 		return
 	}
-	// Optionally: check if KYC status exists (not strictly required if FK enforced)
-	err = a.Models.Customers.Insert(&input)
+
+	// Build customer
+	customer := data.Customer{
+		PersonID:    person.ID,
+		KYCStatusID: 1, // Pending
+	}
+
+	// Start transaction
+	tx, err := a.Models.Customers.DB.Begin()
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+	defer tx.Rollback()
+
+	// Insert customer
+	err = a.Models.Customers.InsertTx(tx, &customer)
 	if err != nil {
 		if err == data.ErrDuplicateCustomer {
-			a.Helper.FailedValidationResponse(w, r, map[string]string{"person_id": "customer for this person already exists"})
+			a.Helper.FailedValidationResponse(w, r, map[string]string{"ssid": "customer already exists for this person"})
 			return
 		}
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
-	err = a.Helper.WriteJSON(w, http.StatusCreated, helpers.Envelope{"customer": input}, nil)
+
+	// Create user
+	customerID := int(customer.ID)
+	user := data.User{
+		Username:     input.Username,
+		Email:        input.Email,
+		Activated:    true,
+		Customer_id:  &customerID,
+		Employee_id:  nil, // ensure NULL in DB for customer
+		Account_type: 0,   // CUSTOMER
+	}
+
+	err = user.Password.Set(input.Password)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	err = a.Models.Users.InsertTx(tx, &user)
+	if err != nil {
+		if err == data.ErrDuplicateEmail {
+			a.Helper.FailedValidationResponse(w, r, map[string]string{"email": "email already in use"})
+			return
+		}
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// Commit
+	err = tx.Commit()
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// Response
+	err = a.Helper.WriteJSON(w, http.StatusCreated, helpers.Envelope{
+		"customer": customer,
+		"user":     user,
+	}, nil)
 	if err != nil {
 		a.Helper.ServerErrorResponse(w, r, err)
 	}
@@ -151,15 +235,49 @@ func (a *HandlerDependencies) deleteCustomerHandler(w http.ResponseWriter, r *ht
 		a.Helper.FailedValidationResponse(w, r, map[string]string{"id": "must be a valid integer"})
 		return
 	}
-	err = a.Models.Customers.Delete(id)
+
+	// Create a context with a 3-second timeout
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	// 1. Start a transaction
+	tx, err := a.Models.Customers.DB.BeginTx(ctx, nil)
 	if err != nil {
-		switch {
-		case err == data.ErrRecordNotFound:
-			a.Helper.WriteJSON(w, http.StatusNotFound, helpers.Envelope{"error": "customer not found"}, nil)
-		default:
-			a.Helper.ServerErrorResponse(w, r, err)
-		}
+		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
-	a.Helper.WriteJSON(w, http.StatusOK, helpers.Envelope{"message": "customer deleted successfully"}, nil)
+	defer tx.Rollback()
+
+	// 2. Delete the associated User account first
+	_, err = tx.ExecContext(ctx, "DELETE FROM users WHERE customer_id = $1", id)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// 3. Delete the Customer
+	result, err := tx.ExecContext(ctx, "DELETE FROM customers WHERE id = $1", id)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	if rowsAffected == 0 {
+		a.Helper.WriteJSON(w, http.StatusNotFound, helpers.Envelope{"error": "customer not found"}, nil)
+		return
+	}
+
+	// 4. Commit the transaction
+	if err = tx.Commit(); err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	a.Helper.WriteJSON(w, http.StatusOK, helpers.Envelope{"message": "customer and associated user account deleted successfully"}, nil)
 }

@@ -1,13 +1,13 @@
-package main 
+package main
 
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
+	"io"
 	"net/http"
 	"strconv"
-	"fmt"
-	"io"
 )
 
 var loansTemplate = template.Must(template.New("loans").Parse(`
@@ -91,12 +91,13 @@ func loansHandler(w http.ResponseWriter, r *http.Request) {
 		var apiURL string
 		var payload map[string]interface{}
 
-		if formType == "disburse" {
+		switch formType {
+		case "disburse":
 			apiURL = "http://localhost:4000/api/loans"
 			amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
 			rate, _ := strconv.ParseFloat(r.FormValue("rate"), 64)
 			term, _ := strconv.Atoi(r.FormValue("term"))
-			
+
 			payload = map[string]interface{}{
 				"account_number":   r.FormValue("account_number"),
 				"principal_amount": amount,
@@ -104,10 +105,10 @@ func loansHandler(w http.ResponseWriter, r *http.Request) {
 				"term_months":      term,
 				"description":      r.FormValue("description"),
 			}
-		} else if formType == "payment" {
+		case "payment":
 			apiURL = "http://localhost:4000/api/loans/payments"
 			amount, _ := strconv.ParseFloat(r.FormValue("amount"), 64)
-			
+
 			payload = map[string]interface{}{
 				"account_number": r.FormValue("account_number"),
 				"amount":         amount,

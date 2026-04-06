@@ -27,6 +27,8 @@ var homeTemplate = template.Must(template.New("home").Parse(`
 		<ul>
 			<li><a href="/persons">Manage Persons</a></li>
 			<li><a href="/customers">Manage Customers</a></li>
+			<li><a href="/employees">Manage Employees</a></li>
+			<li><a href="/users">Manage Users</a></li>
 			<li><a href="/accounts">Manage Accounts</a></li>
 			<li><a href="/deposits">Deposits</a></li>
 			<li><a href="/withdrawals">Withdrawals</a></li>

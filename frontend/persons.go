@@ -1,14 +1,14 @@
 package main
 
 import (
-	"html/template"
-	"net/http"
-	"fmt"
-	"encoding/json"
 	"bytes"
-	"time"
+	"encoding/json"
+	"fmt"
+	"html/template"
 	"io"
+	"net/http"
 	"strconv"
+	"time"
 )
 
 var personsTemplate = template.Must(template.New("persons").Parse(`
@@ -85,96 +85,95 @@ var personsTemplate = template.Must(template.New("persons").Parse(`
 `))
 
 type Person struct {
-    ID                   int
-    FirstName            string
-    LastName             string
-    SocialSecurityNumber string
-    Email                string
-    PhoneNumber          string
+	ID                   int
+	FirstName            string
+	LastName             string
+	SocialSecurityNumber string
+	Email                string
+	PhoneNumber          string
 }
 
 type personsPageData struct {
-    Persons    []Person
-    Page       int
-    TotalPages int
-    PrevPage   int
-    NextPage   int
-    HasPrev    bool
-    HasNext    bool
+	Persons    []Person
+	Page       int
+	TotalPages int
+	PrevPage   int
+	NextPage   int
+	HasPrev    bool
+	HasNext    bool
 }
 
 func personsHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodGet {
-        http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-        return
-    }
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-    // 1. Better Query Parsing
-    page := 1
-    if p := r.URL.Query().Get("page"); p != "" {
-        if val, err := strconv.Atoi(p); err == nil && val > 0 {
-            page = val
-        }
-    }
-    pageSize := 5
+	// 1. Better Query Parsing
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil && val > 0 {
+			page = val
+		}
+	}
+	pageSize := 5
 
-    apiURL := fmt.Sprintf("http://localhost:4000/api/persons?page=%d&page_size=%d", page, pageSize)
-    resp, err := http.Get(apiURL)
-    if err != nil {
-        http.Error(w, "Failed to fetch persons", http.StatusInternalServerError)
-        return
-    }
-    defer resp.Body.Close()
+	apiURL := fmt.Sprintf("http://localhost:4000/api/persons?page=%d&page_size=%d", page, pageSize)
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		http.Error(w, "Failed to fetch persons", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
 
-    // 2. Corrected Struct Mapping
-    var result struct {
-        Persons []struct {
-            ID                   int    `json:"id"`
-            FirstName            string `json:"first_name"`
-            LastName             string `json:"last_name"`
-            SocialSecurityNumber string `json:"social_security_number"`
-            Email                string `json:"email"`
-            PhoneNumber          string `json:"phone_number"`
-        } `json:"persons"`
-        Metadata struct {
-            CurrentPage int `json:"current_page"`
-            LastPage    int `json:"last_page"` // Map this to the API's "last_page"
-        } `json:"@metadata"`
-    }
+	// 2. Corrected Struct Mapping
+	var result struct {
+		Persons []struct {
+			ID                   int    `json:"id"`
+			FirstName            string `json:"first_name"`
+			LastName             string `json:"last_name"`
+			SocialSecurityNumber string `json:"social_security_number"`
+			Email                string `json:"email"`
+			PhoneNumber          string `json:"phone_number"`
+		} `json:"persons"`
+		Metadata struct {
+			CurrentPage int `json:"current_page"`
+			LastPage    int `json:"last_page"` // Map this to the API's "last_page"
+		} `json:"@metadata"`
+	}
 
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        http.Error(w, "Failed to parse API response", http.StatusInternalServerError)
-        return
-    }
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		http.Error(w, "Failed to parse API response", http.StatusInternalServerError)
+		return
+	}
 
-    // 3. Prepare Template Data
-    persons := make([]Person, len(result.Persons))
-    for i, p := range result.Persons {
-        persons[i] = Person{
-            ID:                   p.ID,
-            FirstName:            p.FirstName,
-            LastName:             p.LastName,
-            SocialSecurityNumber: p.SocialSecurityNumber,
-            Email:                p.Email,
-            PhoneNumber:          p.PhoneNumber,
-        }
-    }
+	// 3. Prepare Template Data
+	persons := make([]Person, len(result.Persons))
+	for i, p := range result.Persons {
+		persons[i] = Person{
+			ID:                   p.ID,
+			FirstName:            p.FirstName,
+			LastName:             p.LastName,
+			SocialSecurityNumber: p.SocialSecurityNumber,
+			Email:                p.Email,
+			PhoneNumber:          p.PhoneNumber,
+		}
+	}
 
-    data := personsPageData{
-        Persons:    persons,
-        Page:       result.Metadata.CurrentPage,
-        TotalPages: result.Metadata.LastPage, // result.Metadata.LastPage is our total
-        PrevPage:   result.Metadata.CurrentPage - 1,
-        NextPage:   result.Metadata.CurrentPage + 1,
-        HasPrev:    result.Metadata.CurrentPage > 1,
-        HasNext:    result.Metadata.CurrentPage < result.Metadata.LastPage,
-    }
+	data := personsPageData{
+		Persons:    persons,
+		Page:       result.Metadata.CurrentPage,
+		TotalPages: result.Metadata.LastPage, // result.Metadata.LastPage is our total
+		PrevPage:   result.Metadata.CurrentPage - 1,
+		NextPage:   result.Metadata.CurrentPage + 1,
+		HasPrev:    result.Metadata.CurrentPage > 1,
+		HasNext:    result.Metadata.CurrentPage < result.Metadata.LastPage,
+	}
 
-    if err := personsTemplate.Execute(w, data); err != nil {
-        http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-    }
+	if err := personsTemplate.Execute(w, data); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
-
 
 var createPersonTemplate = template.Must(template.New("createPerson").Parse(`
 <!DOCTYPE html>
@@ -218,87 +217,89 @@ var createPersonTemplate = template.Must(template.New("createPerson").Parse(`
 `))
 
 func createPersonHandler(w http.ResponseWriter, r *http.Request) {
-    type formData struct {
-        FirstName            string
-        LastName             string
-        SocialSecurityNumber string
-        Email                string
-        DateOfBirth          string
-        PhoneNumber          string
-        LivingAddress        string
-    }
-    type pageData struct {
-        Message string
-        Error   string
-    }
-    if r.Method == http.MethodGet {
-        createPersonTemplate.Execute(w, pageData{})
-        return
-    }
-    if r.Method == http.MethodPost {
-        if err := r.ParseForm(); err != nil {
-            createPersonTemplate.Execute(w, pageData{Error: "Invalid form submission."})
-            return
-        }
-        data := formData{
-            FirstName:            r.FormValue("first_name"),
-            LastName:             r.FormValue("last_name"),
-            SocialSecurityNumber: r.FormValue("social_security_number"),
-            Email:                r.FormValue("email"),
-            DateOfBirth:          r.FormValue("date_of_birth"),
-            PhoneNumber:          r.FormValue("phone_number"),
-            LivingAddress:        r.FormValue("living_address"),
-        }
-        // Convert date_of_birth to RFC3339
-        dobRFC3339 := data.DateOfBirth
-        if data.DateOfBirth != "" {
-            if t, err := time.Parse("2006-01-02", data.DateOfBirth); err == nil {
-                dobRFC3339 = t.Format(time.RFC3339)
-            }
-        }
-        payload := map[string]string{
-            "first_name":             data.FirstName,
-            "last_name":              data.LastName,
-            "social_security_number": data.SocialSecurityNumber,
-            "email":                  data.Email,
-            "date_of_birth":          dobRFC3339,
-            "phone_number":           data.PhoneNumber,
-            "living_address":         data.LivingAddress,
-        }
-        buf := new(bytes.Buffer)
-        if err := json.NewEncoder(buf).Encode(payload); err != nil {
-            createPersonTemplate.Execute(w, pageData{Error: "Failed to encode data."})
-            return
-        }
-        resp, err := http.Post("http://localhost:4000/api/persons", "application/json", buf)
-        if err != nil {
-            createPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
-            return
-        }
-        defer resp.Body.Close()
-            if resp.StatusCode != http.StatusCreated {
-                // Always read the full response body for error reporting
-                raw, _ := io.ReadAll(resp.Body)
-                // Try to decode JSON error
-                var errResp struct{ Error string `json:"error"` }
-                msg := ""
-                if err := json.Unmarshal(raw, &errResp); err == nil && errResp.Error != "" {
-                    msg = errResp.Error
-                } else {
-                    msg = string(raw)
-                }
-                if msg == "" {
-                    msg = "Backend error."
-                }
-                // For debugging: print the raw response to server logs
-                fmt.Println("[DEBUG] Backend error response:", msg)
-                createPersonTemplate.Execute(w, pageData{Error: msg})
-                return
-        }
-        createPersonTemplate.Execute(w, pageData{Message: "Person created successfully!"})
-        return
-    }
-    http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	type formData struct {
+		FirstName            string
+		LastName             string
+		SocialSecurityNumber string
+		Email                string
+		DateOfBirth          string
+		PhoneNumber          string
+		LivingAddress        string
+	}
+	type pageData struct {
+		Message string
+		Error   string
+	}
+	if r.Method == http.MethodGet {
+		createPersonTemplate.Execute(w, pageData{})
+		return
+	}
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			createPersonTemplate.Execute(w, pageData{Error: "Invalid form submission."})
+			return
+		}
+		data := formData{
+			FirstName:            r.FormValue("first_name"),
+			LastName:             r.FormValue("last_name"),
+			SocialSecurityNumber: r.FormValue("social_security_number"),
+			Email:                r.FormValue("email"),
+			DateOfBirth:          r.FormValue("date_of_birth"),
+			PhoneNumber:          r.FormValue("phone_number"),
+			LivingAddress:        r.FormValue("living_address"),
+		}
+		// Convert date_of_birth to RFC3339
+		dobRFC3339 := data.DateOfBirth
+		if data.DateOfBirth != "" {
+			if t, err := time.Parse("2006-01-02", data.DateOfBirth); err == nil {
+				dobRFC3339 = t.Format(time.RFC3339)
+			}
+		}
+		payload := map[string]string{
+			"first_name":             data.FirstName,
+			"last_name":              data.LastName,
+			"social_security_number": data.SocialSecurityNumber,
+			"email":                  data.Email,
+			"date_of_birth":          dobRFC3339,
+			"phone_number":           data.PhoneNumber,
+			"living_address":         data.LivingAddress,
+		}
+		buf := new(bytes.Buffer)
+		if err := json.NewEncoder(buf).Encode(payload); err != nil {
+			createPersonTemplate.Execute(w, pageData{Error: "Failed to encode data."})
+			return
+		}
+		resp, err := http.Post("http://localhost:4000/api/persons", "application/json", buf)
+		if err != nil {
+			createPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusCreated {
+			// Always read the full response body for error reporting
+			raw, _ := io.ReadAll(resp.Body)
+			// Try to decode JSON error
+			var errResp struct {
+				Error string `json:"error"`
+			}
+			msg := ""
+			if err := json.Unmarshal(raw, &errResp); err == nil && errResp.Error != "" {
+				msg = errResp.Error
+			} else {
+				msg = string(raw)
+			}
+			if msg == "" {
+				msg = "Backend error."
+			}
+			// For debugging: print the raw response to server logs
+			fmt.Println("[DEBUG] Backend error response:", msg)
+			createPersonTemplate.Execute(w, pageData{Error: msg})
+			return
+		}
+		createPersonTemplate.Execute(w, pageData{Message: "Person created successfully!"})
+		return
+	}
+	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 }
 
 var viewPersonTemplate = template.Must(template.New("viewPerson").Parse(`
@@ -371,58 +372,57 @@ var viewPersonTemplate = template.Must(template.New("viewPerson").Parse(`
 `))
 
 type PersonDetails struct {
-    ID                   int    `json:"id"`
-    FirstName            string `json:"first_name"`
-    LastName             string `json:"last_name"`
-    SocialSecurityNumber string `json:"social_security_number"`
-    Email                string `json:"email"`
-    DateOfBirth          string `json:"date_of_birth"`
-    PhoneNumber          string `json:"phone_number"`
-    LivingAddress        string `json:"living_address"`
-    CreatedAt            string `json:"created_at"`
-    UpdatedAt            string `json:"updated_at"`
+	ID                   int    `json:"id"`
+	FirstName            string `json:"first_name"`
+	LastName             string `json:"last_name"`
+	SocialSecurityNumber string `json:"social_security_number"`
+	Email                string `json:"email"`
+	DateOfBirth          string `json:"date_of_birth"`
+	PhoneNumber          string `json:"phone_number"`
+	LivingAddress        string `json:"living_address"`
+	CreatedAt            string `json:"created_at"`
+	UpdatedAt            string `json:"updated_at"`
 }
 
 type viewPersonData struct {
-    Person  *PersonDetails
-    Message string
-    Error   string
+	Person  *PersonDetails
+	Message string
+	Error   string
 }
 
 func viewPersonHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodGet {
-        http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-        return
-    }
-    ssid := r.URL.Query().Get("ssid")
-    if ssid == "" {
-        viewPersonTemplate.Execute(w, viewPersonData{Error: "No SSID provided."})
-        return
-    }
-    // Call backend API to get person by SSID
-    apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
-    resp, err := http.Get(apiURL)
-    if err != nil {
-        viewPersonTemplate.Execute(w, viewPersonData{Error: "Failed to contact backend API."})
-        return
-    }
-    defer resp.Body.Close()
-    if resp.StatusCode != http.StatusOK {
-        viewPersonTemplate.Execute(w, viewPersonData{Error: "Person not found or API error."})
-        return
-    }
-    // Parse JSON response
-    var result struct {
-        Person PersonDetails `json:"person"`
-    }
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        viewPersonTemplate.Execute(w, viewPersonData{Error: "Failed to parse API response."})
-        return
-    }
-    data := viewPersonData{Person: &result.Person}
-    viewPersonTemplate.Execute(w, data)
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	ssid := r.URL.Query().Get("ssid")
+	if ssid == "" {
+		viewPersonTemplate.Execute(w, viewPersonData{Error: "No SSID provided."})
+		return
+	}
+	// Call backend API to get person by SSID
+	apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		viewPersonTemplate.Execute(w, viewPersonData{Error: "Failed to contact backend API."})
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		viewPersonTemplate.Execute(w, viewPersonData{Error: "Person not found or API error."})
+		return
+	}
+	// Parse JSON response
+	var result struct {
+		Person PersonDetails `json:"person"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		viewPersonTemplate.Execute(w, viewPersonData{Error: "Failed to parse API response."})
+		return
+	}
+	data := viewPersonData{Person: &result.Person}
+	viewPersonTemplate.Execute(w, data)
 }
-
 
 var editPersonTemplate = template.Must(template.New("editPerson").Parse(`
 <!DOCTYPE html>
@@ -466,107 +466,112 @@ var editPersonTemplate = template.Must(template.New("editPerson").Parse(`
 </body>
 </html>
 `))
+
 // editPersonHandler renders and processes the edit person form
 func editPersonHandler(w http.ResponseWriter, r *http.Request) {
-    type pageData struct {
-        Person  *PersonDetails
-        Message string
-        Error   string
-    }
-    ssid := r.URL.Query().Get("ssid")
-    if ssid == "" {
-        editPersonTemplate.Execute(w, pageData{Error: "No SSID provided."})
-        return
-    }
-    if r.Method == http.MethodGet {
-        // Fetch person data from backend
-        apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
-        resp, err := http.Get(apiURL)
-        if err != nil {
-            editPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
-            return
-        }
-        defer resp.Body.Close()
-        if resp.StatusCode != http.StatusOK {
-            editPersonTemplate.Execute(w, pageData{Error: "Person not found or API error."})
-            return
-        }
-        var result struct { Person PersonDetails `json:"person"` }
-        if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-            editPersonTemplate.Execute(w, pageData{Error: "Failed to parse API response."})
-            return
-        }
-        // Convert RFC3339 date to yyyy-mm-dd for input
-        if len(result.Person.DateOfBirth) >= 10 {
-            result.Person.DateOfBirth = result.Person.DateOfBirth[:10]
-        }
-        editPersonTemplate.Execute(w, pageData{Person: &result.Person})
-        return
-    }
-    if r.Method == http.MethodPost {
-        if err := r.ParseForm(); err != nil {
-            editPersonTemplate.Execute(w, pageData{Error: "Invalid form submission."})
-            return
-        }
-        // Prepare PATCH payload
-        payload := map[string]string{
-            "first_name":             r.FormValue("first_name"),
-            "last_name":              r.FormValue("last_name"),
-            "email":                  r.FormValue("email"),
-            "date_of_birth":          r.FormValue("date_of_birth"),
-            "phone_number":           r.FormValue("phone_number"),
-            "living_address":         r.FormValue("living_address"),
-        }
-        // Convert date_of_birth to RFC3339
-        if dob := payload["date_of_birth"]; dob != "" {
-            if t, err := time.Parse("2006-01-02", dob); err == nil {
-                payload["date_of_birth"] = t.Format(time.RFC3339)
-            }
-        }
-        buf := new(bytes.Buffer)
-        if err := json.NewEncoder(buf).Encode(payload); err != nil {
-            editPersonTemplate.Execute(w, pageData{Error: "Failed to encode data."})
-            return
-        }
-        req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid), buf)
-        if err != nil {
-            editPersonTemplate.Execute(w, pageData{Error: "Failed to create request."})
-            return
-        }
-        req.Header.Set("Content-Type", "application/json")
-        resp, err := http.DefaultClient.Do(req)
-        if err != nil {
-            editPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
-            return
-        }
-        defer resp.Body.Close()
-        if resp.StatusCode != http.StatusOK {
-            raw, _ := io.ReadAll(resp.Body)
-            msg := string(raw)
-            if msg == "" {
-                msg = "Backend error."
-            }
-            editPersonTemplate.Execute(w, pageData{Error: msg})
-            return
-        }
-        // Success: fetch updated data for display
-        apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
-        resp2, err := http.Get(apiURL)
-        if err != nil {
-            editPersonTemplate.Execute(w, pageData{Message: "Person updated!", Error: "(But failed to reload data)"})
-            return
-        }
-        defer resp2.Body.Close()
-        var result struct { Person PersonDetails `json:"person"` }
-        if err := json.NewDecoder(resp2.Body).Decode(&result); err != nil {
-            editPersonTemplate.Execute(w, pageData{Message: "Person updated!", Error: "(But failed to parse updated data)"})
-            return
-        }
-        if len(result.Person.DateOfBirth) >= 10 {
-            result.Person.DateOfBirth = result.Person.DateOfBirth[:10]
-        }
-        editPersonTemplate.Execute(w, pageData{Person: &result.Person, Message: "Person updated!"})
-        return
-    }
-    http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	type pageData struct {
+		Person  *PersonDetails
+		Message string
+		Error   string
+	}
+	ssid := r.URL.Query().Get("ssid")
+	if ssid == "" {
+		editPersonTemplate.Execute(w, pageData{Error: "No SSID provided."})
+		return
+	}
+	if r.Method == http.MethodGet {
+		// Fetch person data from backend
+		apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
+		resp, err := http.Get(apiURL)
+		if err != nil {
+			editPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			editPersonTemplate.Execute(w, pageData{Error: "Person not found or API error."})
+			return
+		}
+		var result struct {
+			Person PersonDetails `json:"person"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			editPersonTemplate.Execute(w, pageData{Error: "Failed to parse API response."})
+			return
+		}
+		// Convert RFC3339 date to yyyy-mm-dd for input
+		if len(result.Person.DateOfBirth) >= 10 {
+			result.Person.DateOfBirth = result.Person.DateOfBirth[:10]
+		}
+		editPersonTemplate.Execute(w, pageData{Person: &result.Person})
+		return
+	}
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			editPersonTemplate.Execute(w, pageData{Error: "Invalid form submission."})
+			return
+		}
+		// Prepare PATCH payload
+		payload := map[string]string{
+			"first_name":     r.FormValue("first_name"),
+			"last_name":      r.FormValue("last_name"),
+			"email":          r.FormValue("email"),
+			"date_of_birth":  r.FormValue("date_of_birth"),
+			"phone_number":   r.FormValue("phone_number"),
+			"living_address": r.FormValue("living_address"),
+		}
+		// Convert date_of_birth to RFC3339
+		if dob := payload["date_of_birth"]; dob != "" {
+			if t, err := time.Parse("2006-01-02", dob); err == nil {
+				payload["date_of_birth"] = t.Format(time.RFC3339)
+			}
+		}
+		buf := new(bytes.Buffer)
+		if err := json.NewEncoder(buf).Encode(payload); err != nil {
+			editPersonTemplate.Execute(w, pageData{Error: "Failed to encode data."})
+			return
+		}
+		req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid), buf)
+		if err != nil {
+			editPersonTemplate.Execute(w, pageData{Error: "Failed to create request."})
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			editPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			raw, _ := io.ReadAll(resp.Body)
+			msg := string(raw)
+			if msg == "" {
+				msg = "Backend error."
+			}
+			editPersonTemplate.Execute(w, pageData{Error: msg})
+			return
+		}
+		// Success: fetch updated data for display
+		apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
+		resp2, err := http.Get(apiURL)
+		if err != nil {
+			editPersonTemplate.Execute(w, pageData{Message: "Person updated!", Error: "(But failed to reload data)"})
+			return
+		}
+		defer resp2.Body.Close()
+		var result struct {
+			Person PersonDetails `json:"person"`
+		}
+		if err := json.NewDecoder(resp2.Body).Decode(&result); err != nil {
+			editPersonTemplate.Execute(w, pageData{Message: "Person updated!", Error: "(But failed to parse updated data)"})
+			return
+		}
+		if len(result.Person.DateOfBirth) >= 10 {
+			result.Person.DateOfBirth = result.Person.DateOfBirth[:10]
+		}
+		editPersonTemplate.Execute(w, pageData{Person: &result.Person, Message: "Person updated!"})
+		return
+	}
+	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 }

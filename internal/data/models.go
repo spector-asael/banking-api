@@ -6,38 +6,42 @@ import (
 )
 
 type Models struct {
-	Persons         PersonModel
-	Customers       CustomerModel
-	Accounts        AccountModel
-	AccountOwnerships AccountOwnershipModel
-	JournalEntries   JournalEntryModel
-	LedgerEntries    LedgerEntryModel
+	Persons             PersonModel
+	Customers           CustomerModel
+	Accounts            AccountModel
+	AccountOwnerships   AccountOwnershipModel
+	JournalEntries      JournalEntryModel
+	LedgerEntries       LedgerEntryModel
 	AccountTransactions AccountTransactionModel
-	Loans LoanModel
-	GLAccounts GLAccountModel
+	Loans               LoanModel
+	GLAccounts          GLAccountModel
+	Users               UserModel
+	Employees           EmployeeModel
 }
 
 func (m Models) NewModels(db *sql.DB) Models {
-   return Models{
-	   Persons:   PersonModel{DB: db},
-	   Customers: CustomerModel{DB: db},
-	   Accounts:  AccountModel{DB: db},
-	   AccountOwnerships: AccountOwnershipModel{DB: db},
-	   JournalEntries: JournalEntryModel{DB: db},
-	   LedgerEntries: LedgerEntryModel{DB: db},
-	   AccountTransactions: AccountTransactionModel{DB: db},
-	   Loans: LoanModel{DB: db},
-	   GLAccounts: GLAccountModel{DB: db},
-   }
+	return Models{
+		Persons:             PersonModel{DB: db},
+		Customers:           CustomerModel{DB: db},
+		Accounts:            AccountModel{DB: db},
+		AccountOwnerships:   AccountOwnershipModel{DB: db},
+		JournalEntries:      JournalEntryModel{DB: db},
+		LedgerEntries:       LedgerEntryModel{DB: db},
+		AccountTransactions: AccountTransactionModel{DB: db},
+		Loans:               LoanModel{DB: db},
+		GLAccounts:          GLAccountModel{DB: db},
+		Users:               UserModel{DB: db},
+		Employees:           EmployeeModel{DB: db},
+	}
 }
 
 // ErrRecordNotFound is returned when a database query does not find a matching record
 var ErrRecordNotFound = errors.New("record not found")
 
 type Filters struct {
-	Page     int
-	PageSize int
-	Sort     string
+	Page         int
+	PageSize     int
+	Sort         string
 	SortSafelist []string
 }
 

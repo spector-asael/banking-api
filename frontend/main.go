@@ -1,9 +1,8 @@
-
 package main
 
 import (
-	"net/http"
 	"log"
+	"net/http"
 )
 
 func main() {
@@ -18,9 +17,18 @@ func main() {
 	http.HandleFunc("/customers/view", viewCustomerHandler)
 	http.HandleFunc("/customers/kyc", updateKYCHandler)
 
+	http.HandleFunc("/employees", employeesHandler)
+	http.HandleFunc("/employees/create", createEmployeeHandler)
+	http.HandleFunc("/employees/view", viewEmployeeHandler)
+	http.HandleFunc("/employees/edit", editEmployeeHandler)
+
 	http.HandleFunc("/accounts", accountsHandler)
 	http.HandleFunc("/accounts/create", createAccountHandler)
 	http.HandleFunc("/accounts/view", viewAccountHandler)
+
+	http.HandleFunc("/users", usersHandler)
+	http.HandleFunc("/users/view", viewUserHandler)
+	http.HandleFunc("/users/edit", editUserHandler)
 	//http.HandleFunc("/accounts/edit", editAccountHandler)
 	// http.HandleFunc("/customers", customersHandler)
 	http.HandleFunc("/deposits", makeDepositHandler)
@@ -32,5 +40,3 @@ func main() {
 		log.Fatal(err)
 	}
 }
-
-	
