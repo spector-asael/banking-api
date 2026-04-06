@@ -1,14 +1,15 @@
-// Filename: internal/mailer/templates/user_welcome.tmpl
-
+// Filename: internal/mailer/templates/bank_account_creation.tmpl
+// Unimplemented for now
 
 {{define "subject"}}Welcome to Craboo Bank!{{end}}
 
 {{define "plainBody"}}
 Hi,
 
-Thanks for signing up for a Craboo Bank account. We're excited to have you on board!
+Thanks for joining the Craboo Bank team. We're excited to have you on board!
 
-For future reference:
+You have been hired as a {{.Account_type}} and your account has been created with the following details:
+
     - Your user SSID number is {{.SSID}}. 
     - Your username is {{.Username}}.
     - Your email address is {{.Email}}.
@@ -30,15 +31,16 @@ The Craboo Bank Team
 
 <body>
     <p>Hi,</p>
-    <p>Thanks for signing up for a Craboo Bank account. We're excited 
+    <p>Thanks for joining the Craboo Bank team. We're excited 
        to have you on board!</p>
     <p>
-        For future reference:
+        You have been hired as a {{.Account_type}} and your account has been created with the following details:
+
         - Your user SSID number is {{.SSID}}. <br>
         - Your username is {{.Username}}. <br>
         - Your email address is {{.Email}}. <br>
         - Your account was created at {{.CreatedAt}}. <br>
-        - Your password was set at {{.PasswordSetAt}}.<br>
+        - Your password was set at {{.PasswordSetAt}}. <br>
     </p>
     <p>Thanks,</p>
     <p>The Craboo Bank Team</p>

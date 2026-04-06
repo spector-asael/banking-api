@@ -291,8 +291,10 @@ func createEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	// If it's a POST request, process the form submission
 	if r.Method == http.MethodPost {
 		branchID, _ := strconv.ParseInt(r.FormValue("branch_id"), 10, 64)
-		positionID, _ := strconv.ParseInt(r.FormValue("position_id"), 10, 64)
 		accountType, _ := strconv.Atoi(r.FormValue("account_type"))
+
+		// Set position_id to match the account_type exactly
+		positionID := int64(accountType)
 
 		// Construct the payload exactly as the API expects it
 		payload := map[string]interface{}{
@@ -327,7 +329,6 @@ func createEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
 func viewEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {

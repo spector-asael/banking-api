@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -85,11 +86,12 @@ func (a *HandlerDependencies) createEmployeeHandler(w http.ResponseWriter, r *ht
 		Password    string `json:"password"`
 		BranchID    int64  `json:"branch_id"`
 		PositionID  int64  `json:"position_id"`
-		AccountType int    `json:"account_type"` // 1: Teller, 2: CSR, 3: Manager, 4: Admin
+		AccountType int    `json:"account_type"`
 	}
 
 	err := a.Helper.ReadJSON(w, r, &input)
 	if err != nil {
+		log.Printf("[DEBUG] Failed to read JSON: %v\n", err)
 		a.Helper.BadRequestResponse(w, r, err)
 		return
 	}
@@ -104,6 +106,7 @@ func (a *HandlerDependencies) createEmployeeHandler(w http.ResponseWriter, r *ht
 	data.ValidatePasswordPlaintext(v, input.Password)
 
 	if !v.IsEmpty() {
+		log.Printf("[DEBUG] Validation failed: %v\n", v.Errors)
 		a.Helper.FailedValidationResponse(w, r, v.Errors)
 		return
 	}
@@ -111,11 +114,12 @@ func (a *HandlerDependencies) createEmployeeHandler(w http.ResponseWriter, r *ht
 	// 1. Verify Person exists
 	person, err := a.Models.Persons.GetBySSID(input.SSID)
 	if err != nil {
+		log.Printf("[DEBUG] Failed to find person with SSID %s: %v\n", input.SSID, err)
 		a.Helper.FailedValidationResponse(w, r, map[string]string{"ssid": "no person found with this SSID"})
 		return
 	}
 
-	// 2. Prepare Employee and User objects
+	// 2. Prepare Employee object
 	employee := &data.Employee{
 		PersonID:   person.ID,
 		BranchID:   input.BranchID,
@@ -127,14 +131,16 @@ func (a *HandlerDependencies) createEmployeeHandler(w http.ResponseWriter, r *ht
 	// 3. Start Transaction
 	tx, err := a.Models.Employees.DB.Begin()
 	if err != nil {
+		log.Printf("[DEBUG] Failed to begin DB transaction: %v\n", err)
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
-	defer tx.Rollback()
+	defer tx.Rollback() // Safe to defer, will do nothing if tx.Commit() succeeds
 
 	// 4. Insert Employee
 	err = a.Models.Employees.InsertTx(tx, employee)
 	if err != nil {
+		log.Printf("[DEBUG] DB Error inserting Employee: %v\n", err)
 		if err == data.ErrDuplicateEmployee {
 			a.Helper.FailedValidationResponse(w, r, map[string]string{"ssid": "employee record already exists for this person"})
 			return
@@ -153,10 +159,17 @@ func (a *HandlerDependencies) createEmployeeHandler(w http.ResponseWriter, r *ht
 		Customer_id:  nil,
 		Account_type: input.AccountType,
 	}
-	user.Password.Set(input.Password)
+
+	err = user.Password.Set(input.Password)
+	if err != nil {
+		log.Printf("[DEBUG] Error hashing password: %v\n", err)
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
 
 	err = a.Models.Users.InsertTx(tx, user)
 	if err != nil {
+		log.Printf("[DEBUG] DB Error inserting User: %v\n", err)
 		switch {
 		case err == data.ErrDuplicateEmail:
 			a.Helper.FailedValidationResponse(w, r, map[string]string{"email": "email already in use"})
@@ -168,10 +181,37 @@ func (a *HandlerDependencies) createEmployeeHandler(w http.ResponseWriter, r *ht
 
 	// 6. Commit transaction
 	if err = tx.Commit(); err != nil {
+		log.Printf("[DEBUG] Failed to commit transaction: %v\n", err)
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
 
+	// --- Email Logic ---
+	roleTitles := map[int]string{
+		1: "Teller",
+		2: "Customer Service Representative",
+		3: "Manager",
+		4: "Administrator",
+	}
+	roleName := roleTitles[input.AccountType]
+
+	templateData := map[string]any{
+		"Account_type":  roleName,
+		"SSID":          input.SSID,
+		"Username":      user.Username,
+		"Email":         user.Email,
+		"CreatedAt":     time.Now().Format("January 02, 2006 at 15:04 MST"),
+		"PasswordSetAt": time.Now().Format("January 02, 2006 at 15:04 MST"),
+	}
+
+	a.Helper.Background(func() {
+		sendErr := a.Mailer.Send(user.Email, "employee_welcome.tmpl", templateData)
+		if sendErr != nil {
+			a.Logger.Error(sendErr.Error())
+		}
+	})
+
+	log.Printf("[DEBUG] SUCCESS! Employee %d and User created.\n", employee.ID)
 	a.Helper.WriteJSON(w, http.StatusCreated, helpers.Envelope{"employee": employee, "user": user}, nil)
 }
 
