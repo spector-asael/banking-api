@@ -1,14 +1,15 @@
 package main
 
 import (
-	"net/http"
-	"strconv"
 	"bytes"
 	"encoding/json"
-	"io"
 	"fmt"
 	"html/template"
+	"io"
+	"net/http"
+	"strconv"
 )
+
 var makeDepositTemplate = template.Must(template.New("makeDeposit").Parse(`
 <!DOCTYPE html>
 <html>
@@ -81,11 +82,15 @@ func makeDepositHandler(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	json.NewEncoder(buf).Encode(payload)
 
-	// Send the POST request to the backend API
-	// Note: Make sure the URL matches where your backend deposit route is mapped!
-	resp, err := http.Post("http://localhost:4000/api/deposits", "application/json", buf)
-	
+	// --- UPDATED: Use callAPI to securely pass the auth token ---
+	resp, err := callAPI(r, http.MethodPost, "http://localhost:4000/api/deposits", buf)
+
 	if err != nil {
+		// Redirect if the token is missing or invalid
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		makeDepositTemplate.Execute(w, map[string]interface{}{"Error": "Could not connect to the backend server."})
 		return
 	}

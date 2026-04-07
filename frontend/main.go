@@ -19,6 +19,7 @@ func main() {
 	http.HandleFunc("/customers/create", createCustomerHandler)
 	http.HandleFunc("/customers/view", viewCustomerHandler)
 	http.HandleFunc("/customers/kyc", updateKYCHandler)
+	http.HandleFunc("/customers/delete", deleteCustomerHandler)
 
 	http.HandleFunc("/employees", employeesHandler)
 	http.HandleFunc("/employees/create", createEmployeeHandler)

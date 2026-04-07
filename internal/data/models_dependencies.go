@@ -18,6 +18,7 @@ type Models struct {
 	Users               UserModel
 	Employees           EmployeeModel
 	Tokens              TokenModel
+	Permissions         PermissionModel
 }
 
 func (m Models) NewModels(db *sql.DB) Models {
@@ -34,6 +35,7 @@ func (m Models) NewModels(db *sql.DB) Models {
 		Users:               UserModel{DB: db},
 		Employees:           EmployeeModel{DB: db},
 		Tokens:              TokenModel{DB: db},
+		Permissions:         PermissionModel{DB: db},
 	}
 }
 

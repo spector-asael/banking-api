@@ -34,7 +34,7 @@ var homeTemplate = template.Must(template.New("home").Parse(`
 			<li><a href="/withdrawals">Withdrawals</a></li>
 			<li><a href="/loans">Loans</a></li>
 			<li><a href="/transfers">Transfers</a></li>
-			<li><a href="/login">login</a></li>
+			<li><a href="/login">Login</a></li>
 		</ul>
 	</div>
 </body>

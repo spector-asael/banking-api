@@ -27,52 +27,57 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	// router.MethodNotAllowed = http.HandlerFunc(a.methodNotAllowedResponse)
 	// setup routes
 	// Persons routes
-	router.HandlerFunc(http.MethodGet, "/api/persons", middlewareInstance.RequireActivatedUser(a.getAllPersonsHandler))         // Get all persons
-	router.HandlerFunc(http.MethodPost, "/api/persons", middlewareInstance.RequireActivatedUser(a.createPersonHandler))         // Create a new person
-	router.HandlerFunc(http.MethodGet, "/api/persons/:ssid", middlewareInstance.RequireActivatedUser(a.getPersonBySSIDHandler)) // Get a person by SSID
-	router.HandlerFunc(http.MethodPatch, "/api/persons/:ssid", middlewareInstance.RequireActivatedUser(a.updatePersonHandler))  // Update a person by SSID
-	router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", middlewareInstance.RequireActivatedUser(a.deletePersonHandler))
+	// Persons routes
+	router.HandlerFunc(http.MethodGet, "/api/persons", middlewareInstance.RequirePermission("persons:read", a.getAllPersonsHandler))
+	router.HandlerFunc(http.MethodPost, "/api/persons", middlewareInstance.RequirePermission("persons:write", a.createPersonHandler))
+	router.HandlerFunc(http.MethodGet, "/api/persons/:ssid", middlewareInstance.RequirePermission("persons:read", a.getPersonBySSIDHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/persons/:ssid", middlewareInstance.RequirePermission("persons:write", a.updatePersonHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", middlewareInstance.RequirePermission("persons:write", a.deletePersonHandler))
 
 	// Customers routes
-	router.HandlerFunc(http.MethodGet, "/api/customers", middlewareInstance.RequireActivatedUser(a.getAllCustomersHandler))                          // Get all customers
-	router.HandlerFunc(http.MethodPost, "/api/customers", middlewareInstance.RequireActivatedUser(a.createCustomerHandler))                          // Create a new customer
-	router.HandlerFunc(http.MethodGet, "/api/customers/:id", middlewareInstance.RequireActivatedUser(a.getCustomerByIDHandler))                      // Get a customer by ID
-	router.HandlerFunc(http.MethodPatch, "/api/customers/:id/kyc-status", middlewareInstance.RequireActivatedUser(a.updateCustomerKYCStatusHandler)) // Update KYC status
-	router.HandlerFunc(http.MethodDelete, "/api/customers/:id", middlewareInstance.RequireActivatedUser(a.deleteCustomerHandler))                    // Delete a customer
+	router.HandlerFunc(http.MethodGet, "/api/customers", middlewareInstance.RequirePermission("customers:read", a.getAllCustomersHandler))
+	router.HandlerFunc(http.MethodPost, "/api/customers", middlewareInstance.RequirePermission("customers:write", a.createCustomerHandler))
+	router.HandlerFunc(http.MethodGet, "/api/customers/:id", middlewareInstance.RequirePermission("customers:read", a.getCustomerByIDHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/customers/:id/kyc-status", middlewareInstance.RequirePermission("customers:write", a.updateCustomerKYCStatusHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/customers/:id", middlewareInstance.RequirePermission("customers:write", a.deleteCustomerHandler))
 
 	// Employees routes
-	router.HandlerFunc(http.MethodGet, "/api/employees", middlewareInstance.RequireActivatedUser(a.getAllEmployeesHandler))       // Get all employees
-	router.HandlerFunc(http.MethodGet, "/api/employees/:id", middlewareInstance.RequireActivatedUser(a.getEmployeeByIDHandler))   // Get an employee by ID
-	router.HandlerFunc(http.MethodDelete, "/api/employees/:id", middlewareInstance.RequireActivatedUser(a.deleteEmployeeHandler)) // Delete an employee
-	router.HandlerFunc(http.MethodPost, "/api/employees", middlewareInstance.RequireActivatedUser(a.createEmployeeHandler))       // Create a new employee
-	router.HandlerFunc(http.MethodPatch, "/api/employees/:id", middlewareInstance.RequireActivatedUser(a.updateEmployeeHandler))  // Update employee status
+	router.HandlerFunc(http.MethodGet, "/api/employees", middlewareInstance.RequirePermission("employees:read", a.getAllEmployeesHandler))
+	router.HandlerFunc(http.MethodGet, "/api/employees/:id", middlewareInstance.RequirePermission("employees:read", a.getEmployeeByIDHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/employees/:id", middlewareInstance.RequirePermission("employees:write", a.deleteEmployeeHandler))
+	router.HandlerFunc(http.MethodPost, "/api/employees", middlewareInstance.RequirePermission("employees:write", a.createEmployeeHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/employees/:id", middlewareInstance.RequirePermission("employees:write", a.updateEmployeeHandler))
 
 	// User routes
-	router.HandlerFunc(http.MethodGet, "/api/users", middlewareInstance.RequireActivatedUser(a.GetAllUsersHandler))      // Get all users
-	router.HandlerFunc(http.MethodGet, "/api/users/:id", middlewareInstance.RequireActivatedUser(a.GetUserByIDHandler))  // Get a user by ID
-	router.HandlerFunc(http.MethodPatch, "/api/users/:id", middlewareInstance.RequireActivatedUser(a.UpdateUserHandler)) // Update a user
-	router.HandlerFunc(http.MethodPut, "/api/users/activated", a.ActivateUserHandler)                                    // Activate a user account
+	router.HandlerFunc(http.MethodGet, "/api/users", middlewareInstance.RequirePermission("users:read", a.GetAllUsersHandler))
+	router.HandlerFunc(http.MethodGet, "/api/users/:id", middlewareInstance.RequirePermission("users:read", a.GetUserByIDHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/users/:id", middlewareInstance.RequirePermission("users:write", a.UpdateUserHandler))
+
+	// NOTE: Left unprotected so users can activate their account won't be activated/authenticated yet.
+	router.HandlerFunc(http.MethodPut, "/api/users/activated", a.ActivateUserHandler)
 
 	// Accounts routes
-	router.HandlerFunc(http.MethodGet, "/api/accounts", middlewareInstance.RequireActivatedUser(a.getAllAccountsHandler))       // Get all accounts
-	router.HandlerFunc(http.MethodPost, "/api/accounts", middlewareInstance.RequireActivatedUser(a.createAccountHandler))       // Create a new account
-	router.HandlerFunc(http.MethodGet, "/api/accounts/:id", middlewareInstance.RequireActivatedUser(a.getAccountByIDHandler))   // Get an account by ID
-	router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", middlewareInstance.RequireActivatedUser(a.updateAccountHandler))  // Update an account
-	router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", middlewareInstance.RequireActivatedUser(a.deleteAccountHandler)) // Delete an account
+	router.HandlerFunc(http.MethodGet, "/api/accounts", middlewareInstance.RequirePermission("accounts:read", a.getAllAccountsHandler))
+	router.HandlerFunc(http.MethodPost, "/api/accounts", middlewareInstance.RequirePermission("accounts:write", a.createAccountHandler))
+	router.HandlerFunc(http.MethodGet, "/api/accounts/:id", middlewareInstance.RequirePermission("accounts:read", a.getAccountByIDHandler))
+	router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", middlewareInstance.RequirePermission("accounts:write", a.updateAccountHandler))
+	router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", middlewareInstance.RequirePermission("accounts:write", a.deleteAccountHandler))
 
+	// Authentication (Left unprotected so users can log in)
 	router.HandlerFunc(http.MethodPost, "/api/authentication/token", a.createAuthenticationTokenHandler)
 
-	// Deposit route
-	router.HandlerFunc(http.MethodPost, "/api/deposits", middlewareInstance.RequireActivatedUser(a.HandleDeposit)) // Make a deposit
+	// Transaction routes (Deposits and Transfers use transactions:write)
+	router.HandlerFunc(http.MethodPost, "/api/deposits", middlewareInstance.RequirePermission("transactions:write", a.HandleDeposit))
+	router.HandlerFunc(http.MethodPost, "/api/transfers", middlewareInstance.RequirePermission("transactions:write", a.HandleTransfer))
 
-	router.HandlerFunc(http.MethodPost, "/api/withdrawals", middlewareInstance.RequireActivatedUser(a.HandleWithdrawal)) // Make a withdrawal
+	// Withdrawal route
+	router.HandlerFunc(http.MethodPost, "/api/withdrawals", middlewareInstance.RequirePermission("withdrawals:write", a.HandleWithdrawal))
 
-	// Transfer route
-	router.HandlerFunc(http.MethodPost, "/api/transfers", middlewareInstance.RequireActivatedUser(a.HandleTransfer)) // Make a transfer
+	// Loans routes
+	router.HandlerFunc(http.MethodPost, "/api/loans", middlewareInstance.RequirePermission("loans:write", a.CreateLoanHandler))
+	router.HandlerFunc(http.MethodPost, "/api/loans/payments", middlewareInstance.RequirePermission("loans:write", a.CreateLoanPaymentHandler))
 
-	router.HandlerFunc(http.MethodPost, "/api/loans", middlewareInstance.RequireActivatedUser(a.CreateLoanHandler))
-	router.HandlerFunc(http.MethodPost, "/api/loans/payments", middlewareInstance.RequireActivatedUser(a.CreateLoanPaymentHandler))
-
+	// Metrics (Public for now)
 	router.Handler(http.MethodGet, "/api/metrics", expvar.Handler())
 
 	authenticateMiddleware := middlewareInstance.Authenticate(router)
