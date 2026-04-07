@@ -161,3 +161,64 @@ func (a *HandlerDependencies) UpdateUserHandler(w http.ResponseWriter, r *http.R
 		a.Helper.ServerErrorResponse(w, r, err)
 	}
 }
+
+func (a *HandlerDependencies) ActivateUserHandler(w http.ResponseWriter, r *http.Request) {
+	// Get the body from the request and store in temporary struct
+	var incomingData struct {
+		TokenPlaintext string `json:"token"`
+	}
+	err := a.Helper.ReadJSON(w, r, &incomingData)
+	if err != nil {
+		a.Helper.BadRequestResponse(w, r, err)
+		return
+	}
+	// Validate the data
+	v := validator.New()
+	data.ValidateTokenPlaintext(v, incomingData.TokenPlaintext)
+	if !v.IsEmpty() {
+		a.Helper.FailedValidationResponse(w, r, v.Errors)
+		return
+	}
+	// Let's check if the token provided belongs to the user
+	user, err := a.Models.Users.GetForToken(data.ScopeActivation,
+		incomingData.TokenPlaintext)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrRecordNotFound):
+			v.AddError("token", "invalid or expired activation token")
+			a.Helper.FailedValidationResponse(w, r, v.Errors)
+		default:
+			a.Helper.ServerErrorResponse(w, r, err)
+		}
+		return
+	}
+	// User provided the right token so activate them
+	user.Activated = true
+	err = a.Models.Users.Update(user)
+	if err != nil {
+		switch {
+		case errors.Is(err, data.ErrEditConflict):
+			a.Helper.EditConflictResponse(w, r)
+		default:
+			a.Helper.ServerErrorResponse(w, r, err)
+		}
+		return
+	}
+	// User has been activated so let's delete the activation token to
+	// prevent reuse.
+	err = a.Models.Tokens.DeleteAllForUser(data.ScopeActivation, user.ID)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// Send a response back to the client
+	data := helpers.Envelope{
+
+		"user": user,
+	}
+	err = a.Helper.WriteJSON(w, http.StatusOK, data, nil)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+	}
+}

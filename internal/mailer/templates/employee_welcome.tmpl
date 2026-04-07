@@ -8,13 +8,13 @@ Hi,
 
 Thanks for joining the Craboo Bank team. We're excited to have you on board!
 
-You have been hired as a {{.Account_type}} and your account has been created with the following details:
+You have been hired as a {{.user.Account_type}} and your account has been created with the following details:
 
-    - Your user SSID number is {{.SSID}}. 
-    - Your username is {{.Username}}.
-    - Your email address is {{.Email}}.
-    - Your account was created at {{.CreatedAt}}.
-    - Your password was set at {{.PasswordSetAt}}.
+    - Your user SSID number is {{.user.SSID}}. 
+    - Your username is {{.user.Username}}.
+    - Your email address is {{.user.Email}}.
+    - Your account was created at {{.user.CreatedAt}}.
+    - Your password was set at {{.user.PasswordSetAt}}.
 
 Thanks,
 
@@ -34,13 +34,21 @@ The Craboo Bank Team
     <p>Thanks for joining the Craboo Bank team. We're excited 
        to have you on board!</p>
     <p>
-        You have been hired as a {{.Account_type}} and your account has been created with the following details:
+        You have been hired as a {{.user.Account_type}} and your account has been created with the following details:
 
-        - Your user SSID number is {{.SSID}}. <br>
-        - Your username is {{.Username}}. <br>
-        - Your email address is {{.Email}}. <br>
-        - Your account was created at {{.CreatedAt}}. <br>
-        - Your password was set at {{.PasswordSetAt}}. <br>
+        - Your user SSID number is {{.user.SSID}}. <br>
+        - Your username is {{.user.Username}}. <br>
+        - Your email address is {{.user.Email}}. <br>
+        - Your account was created at {{.user.CreatedAt}}. <br>
+        - Your password was set at {{.user.PasswordSetAt}}. <br>
+    </p>
+    <p>
+        Please send a request to the `PUT /v1/users/activated` endpoint with 
+        the  following JSON body to activate your account:
+
+        {"token": "{{.activationToken}}"}
+
+        Please note that this is a one-time use token and it will expire in 3 days.
     </p>
     <p>Thanks,</p>
     <p>The Craboo Bank Team</p>

@@ -46,9 +46,10 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/api/employees/:id", a.updateEmployeeHandler)  // Update employee status
 
 	// User routes
-	router.HandlerFunc(http.MethodGet, "/api/users", a.GetAllUsersHandler)      // Get all users
-	router.HandlerFunc(http.MethodGet, "/api/users/:id", a.GetUserByIDHandler)  // Get a user by ID
-	router.HandlerFunc(http.MethodPatch, "/api/users/:id", a.UpdateUserHandler) // Update a user
+	router.HandlerFunc(http.MethodGet, "/api/users", a.GetAllUsersHandler)            // Get all users
+	router.HandlerFunc(http.MethodGet, "/api/users/:id", a.GetUserByIDHandler)        // Get a user by ID
+	router.HandlerFunc(http.MethodPatch, "/api/users/:id", a.UpdateUserHandler)       // Update a user
+	router.HandlerFunc(http.MethodPut, "/api/users/activated", a.ActivateUserHandler) // Activate a user account
 
 	// Accounts routes
 	router.HandlerFunc(http.MethodGet, "/api/accounts", a.getAllAccountsHandler)       // Get all accounts

@@ -3,6 +3,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -288,14 +289,26 @@ func (u UserModel) GetAll(username string, email string, f Filters) ([]*User, Me
 // our query will fail and we would need to try again a bit later
 // This is an optimistic locking strategy to prevent lost updates
 // when multiple clients are trying to update the same record at the same time.
+// Update a User. We only update mutable fields to prevent accidental
+// overwrites of immutable data (like account_type and foreign keys).
 func (u UserModel) Update(user *User) error {
+
 	query := `
             UPDATE users
-            SET username = $1, email = $2, password_hash = $3, activated = $4, employee_id = $5, customer_id = $6, account_type = $7, version = version + 1
-            WHERE id = $8 AND version = $9
+            SET username = $1, email = $2, password_hash = $3, activated = $4, version = version + 1
+            WHERE id = $5 AND version = $6
             RETURNING version
         `
-	args := []any{user.Username, user.Email, user.Password.hash, user.Activated, user.Employee_id, user.Customer_id, user.Account_type, user.ID, user.Version}
+
+	// FIX: Removed the immutable fields from the args slice
+	args := []any{
+		user.Username,
+		user.Email,
+		user.Password.hash,
+		user.Activated,
+		user.ID,
+		user.Version,
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -314,4 +327,53 @@ func (u UserModel) Update(user *User) error {
 		}
 	}
 	return nil
+}
+
+// Verify token to user. We need to hash the passed in token
+func (u UserModel) GetForToken(tokenScope, tokenPlaintext string) (*User, error) {
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+
+	// FIX 1: Add account_type, customer_id, and employee_id to the SELECT
+	query := `
+        SELECT users.id, users.created_at, users.username,
+               users.email, users.password_hash, users.activated, users.version,
+               users.account_type, users.customer_id, users.employee_id
+        FROM users
+        INNER JOIN tokens
+        ON users.id = tokens.user_id
+        WHERE tokens.hash = $1
+        AND tokens.scope = $2 
+        AND tokens.expiry > $3
+       `
+	args := []any{tokenHash[:], tokenScope, time.Now()}
+
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// FIX 2: Add the new fields to the Scan() method so they populate the struct
+	err := u.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.CreatedAt,
+		&user.Username,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+		&user.Account_type, // <--- Added
+		&user.Customer_id,  // <--- Added
+		&user.Employee_id,  // <--- Added
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	// Return the matching user.
+	return &user, nil
 }

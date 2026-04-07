@@ -88,6 +88,7 @@ var layoutCSS = `
         input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
         
         .back-home { display: block; text-align: center; margin-top: 20px; color: #64748b; text-decoration: none; }
+		.back { margin-top: 24px; display: block; text-align: center; color: #1976d2; text-decoration: none; }
     </style>
 `
 

@@ -144,7 +144,7 @@ func (a *HandlerDependencies) createCustomerHandler(w http.ResponseWriter, r *ht
 	user := data.User{
 		Username:     input.Username,
 		Email:        input.Email,
-		Activated:    true,
+		Activated:    false, // Must be false so they can activate with the token!
 		Customer_id:  &customerID,
 		Employee_id:  nil, // ensure NULL in DB for customer
 		Account_type: 0,   // CUSTOMER
@@ -172,11 +172,27 @@ func (a *HandlerDependencies) createCustomerHandler(w http.ResponseWriter, r *ht
 		a.Helper.ServerErrorResponse(w, r, err)
 		return
 	}
-	// Send the email as a Goroutine. We do this because it might take a long time
-	// and we don't want our handler to wait for that to finish. We will implement
-	// the background() function later
+
+	// Generate a new activation token which expires in 3 days
+	token, err := a.Models.Tokens.New(user.ID, 3*24*time.Hour, data.ScopeActivation)
+	if err != nil {
+		a.Helper.ServerErrorResponse(w, r, err)
+		return
+	}
+
+	// Build custom map to perfectly match the template expectations
+	templateData := map[string]any{
+		"activationToken": token.Plaintext,
+		"SSID":            input.SSID,
+		"Username":        user.Username,
+		"Email":           user.Email,
+		"CreatedAt":       time.Now().Format("January 02, 2006 at 15:04 MST"),
+		"PasswordSetAt":   time.Now().Format("January 02, 2006 at 15:04 MST"),
+	}
+
+	// Send the email as a Goroutine
 	a.Helper.Background(func() {
-		err = a.Mailer.Send(user.Email, "user_welcome.tmpl", user)
+		err = a.Mailer.Send(user.Email, "user_welcome.tmpl", templateData)
 		if err != nil {
 			a.Logger.Error(err.Error())
 		}
