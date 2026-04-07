@@ -16,8 +16,10 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	}
 
 	middlewareInstance := &middleware.MiddlewareDependencies{
-		Config: a.Config,
-		Logger: a.Logger,
+		Config:  a.Config,
+		Logger:  a.Logger,
+		Helpers: &a.Helper,
+		Models:  &a.Models,
 	}
 	// setup a new router
 	router := httprouter.New()
@@ -58,6 +60,8 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", a.updateAccountHandler)  // Update an account
 	router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", a.deleteAccountHandler) // Delete an account
 
+	router.HandlerFunc(http.MethodPost, "/api/authentication/token", a.createAuthenticationTokenHandler)
+
 	// Deposit route
 	router.HandlerFunc(http.MethodPost, "/api/deposits", a.HandleDeposit) // Make a deposit
 
@@ -71,13 +75,14 @@ func (a *HandlerDependencies) Routes() http.Handler {
 
 	router.Handler(http.MethodGet, "/api/metrics", expvar.Handler())
 
-	gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(router)
+	authenticateMiddleware := middlewareInstance.Authenticate(router)
+	gzipRequestMiddleware := middlewareInstance.GzipRequestMiddleware(authenticateMiddleware)
 	gzipResponseMiddleware := middlewareInstance.GzipResponseMiddleware(gzipRequestMiddleware)
 	rateLimitMiddleware := middlewareInstance.RateLimit(gzipResponseMiddleware)
 	loggingMiddleware := middlewareInstance.LoggingMiddleware(rateLimitMiddleware)
 	metricsMiddleware := middlewareInstance.MetricsMiddleware(loggingMiddleware)
 	panicMiddleware := middlewareInstance.RecoverPanic(metricsMiddleware)
-	// CORS should be the true outermost middleware
+
 	return middlewareInstance.EnableCORS(panicMiddleware)
 
 }

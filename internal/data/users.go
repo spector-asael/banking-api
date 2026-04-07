@@ -22,6 +22,8 @@ type UserModel struct {
 	DB *sql.DB
 }
 
+var AnonymousUser = &User{}
+
 type User struct {
 	ID           int64     `json:"id"`
 	Username     string    `json:"name"`
@@ -33,6 +35,13 @@ type User struct {
 	Employee_id  *int      `json:"employee_id,omitempty"`
 	Customer_id  *int      `json:"customer_id,omitempty"`
 	Account_type int       `json:"account_type"`
+}
+
+// Let's check if the current user is anonymous
+// Note: Go will compare the addresses to determine if they are same,
+// not if they have the same field values
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
 
 type password struct {

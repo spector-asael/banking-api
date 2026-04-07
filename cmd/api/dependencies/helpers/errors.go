@@ -80,3 +80,20 @@ func (a *HelperDependencies) EditConflictResponse(w http.ResponseWriter,
 	message := "Error 409: unable to update the record due to an edit conflict, please try again"
 	a.errorResponseJSON(w, r, http.StatusConflict, message)
 }
+
+// Return a 401 status code
+func (a *HelperDependencies) InvalidCredentialsResponse(w http.ResponseWriter, r *http.Request) {
+	message := "invalid authentication credentials"
+	a.errorResponseJSON(w, r, http.StatusUnauthorized, message)
+}
+
+// We set the WWW-Authenticate header to give a hint to the user as
+// to what they need to provide. Don't want to leave them guessing
+func (a *HelperDependencies) InvalidAuthenticationTokenResponse(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("WWW-Authenticate", "Bearer")
+
+	message := "invalid or missing authentication token"
+	a.errorResponseJSON(w, r, http.StatusUnauthorized, message)
+
+}
