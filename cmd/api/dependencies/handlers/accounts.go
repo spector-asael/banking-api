@@ -3,11 +3,12 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/spector-asael/banking-api/cmd/api/dependencies/helpers"
 	"github.com/spector-asael/banking-api/internal/data"
 	"github.com/spector-asael/banking-api/internal/validator"
-	"time"
 )
 
 // PATCH /accounts/:id
@@ -30,8 +31,8 @@ func (a *HandlerDependencies) updateAccountHandler(w http.ResponseWriter, r *htt
 		return
 	}
 	var input struct {
-		Status    *string    `json:"status"`
-		ClosedAt  *string    `json:"closed_at"`
+		Status   *string `json:"status"`
+		ClosedAt *string `json:"closed_at"`
 	}
 	err = a.Helper.ReadJSON(w, r, &input)
 	if err != nil {
@@ -104,15 +105,15 @@ func (a *HandlerDependencies) getAllAccountsHandler(w http.ResponseWriter, r *ht
 
 // Input struct for account creation with SSID
 type createAccountInput struct {
-	AccountNumber   string  `json:"account_number"`
-	BranchID        int64   `json:"branch_id_opened_at"`
-	AccountTypeID   int64   `json:"account_type_id"`
+	AccountNumber string `json:"account_number"`
+	BranchID      int64  `json:"branch_id_opened_at"`
+	AccountTypeID int64  `json:"account_type_id"`
 	// Note: GLAccountID has been removed since the backend generates it!
-	Status          string  `json:"status"`
-	OpenedAt        string  `json:"opened_at"`
-	ClosedAt        *string `json:"closed_at,omitempty"`
-	SSID            string  `json:"social_security_number"`
-	IsJointAccount  bool    `json:"is_joint_account"`
+	Status         string  `json:"status"`
+	OpenedAt       string  `json:"opened_at"`
+	ClosedAt       *string `json:"closed_at,omitempty"`
+	SSID           string  `json:"social_security_number"`
+	IsJointAccount bool    `json:"is_joint_account"`
 }
 
 // POST /accounts
@@ -183,15 +184,15 @@ func (a *HandlerDependencies) createAccountHandler(w http.ResponseWriter, r *htt
 
 	// --- 2. CREATE THE BANK ACCOUNT ---
 	account := data.Account{
-		AccountNumber: input.AccountNumber,
+		AccountNumber:    input.AccountNumber,
 		BranchIDOpenedAt: input.BranchID,
-		AccountTypeID: input.AccountTypeID,
-		GLAccountID:   glAccount.ID, // Link the newly created GL Account
-		Status:        input.Status,
-		OpenedAt:      openedAt,
-		ClosedAt:      closedAtPtr,
+		AccountTypeID:    input.AccountTypeID,
+		GLAccountID:      glAccount.ID, // Link the newly created GL Account
+		Status:           input.Status,
+		OpenedAt:         openedAt,
+		ClosedAt:         closedAtPtr,
 	}
-	
+
 	err = a.Models.Accounts.Insert(&account)
 	if err != nil {
 		if err == data.ErrDuplicateAccount {
