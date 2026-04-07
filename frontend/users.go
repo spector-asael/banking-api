@@ -88,7 +88,7 @@ var layoutCSS = `
         input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; }
         
         .back-home { display: block; text-align: center; margin-top: 20px; color: #64748b; text-decoration: none; }
-		.back { margin-top: 24px; display: block; text-align: center; color: #1976d2; text-decoration: none; }
+        .back { margin-top: 24px; display: block; text-align: center; color: #1976d2; text-decoration: none; }
     </style>
 `
 
@@ -208,8 +208,14 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apiURL := fmt.Sprintf("http://localhost:4000/api/users?page=%d&page_size=10&sort=%s", page, sort)
-	resp, err := http.Get(apiURL)
+
+	// UPDATED: Use callAPI
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
 	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		http.Error(w, "Failed to connect to API", http.StatusInternalServerError)
 		return
 	}
@@ -238,12 +244,24 @@ func usersHandler(w http.ResponseWriter, r *http.Request) {
 
 func viewUserHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	resp, _ := http.Get("http://localhost:4000/api/users/" + id)
+	apiURL := "http://localhost:4000/api/users/" + id
+
+	// UPDATED: Use callAPI
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		http.Error(w, "Failed to connect to API", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
-	defer resp.Body.Close()
 
 	var result struct {
 		User User `json:"user"`
@@ -254,9 +272,19 @@ func viewUserHandler(w http.ResponseWriter, r *http.Request) {
 
 func editUserHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
+	apiURL := "http://localhost:4000/api/users/" + id
 
-	// Fetch existing data for the form
-	resp, _ := http.Get("http://localhost:4000/api/users/" + id)
+	// Fetch existing data for the form using callAPI
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		http.Error(w, "Failed to connect to API", http.StatusInternalServerError)
+		return
+	}
+
 	var result struct {
 		User User `json:"user"`
 	}
@@ -273,13 +301,21 @@ func editUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		jsonBody, _ := json.Marshal(payload)
-		req, _ := http.NewRequest(http.MethodPatch, "http://localhost:4000/api/users/"+id, bytes.NewBuffer(jsonBody))
-		req.Header.Set("Content-Type", "application/json")
 
-		client := &http.Client{}
-		respPatch, err := client.Do(req)
+		// UPDATED: Use callAPI instead of setting up a custom client for PATCH
+		respPatch, err := callAPI(r, http.MethodPatch, apiURL, bytes.NewBuffer(jsonBody))
 
-		if err == nil && respPatch.StatusCode == http.StatusOK {
+		if err != nil {
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
+			editUserTemplate.Execute(w, userViewData{User: &result.User, Error: "Update failed to connect."})
+			return
+		}
+		defer respPatch.Body.Close()
+
+		if respPatch.StatusCode == http.StatusOK {
 			// Update local struct to show success on form
 			result.User.Username = payload["name"]
 			result.User.Email = payload["email"]

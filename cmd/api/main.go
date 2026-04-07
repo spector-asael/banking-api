@@ -41,7 +41,7 @@ func main() {
 		"", "SMTP password")
 
 	flag.StringVar(&settings.SMTP.Sender, "smtp-sender",
-		"Comments Community <no-reply@commentscommunity.spector.net>",
+		"Craboo Bank <no-reply@craboobank.spector.net>",
 		"SMTP sender")
 
 	flag.IntVar(&settings.Limiter.Burst, "limiter-burst", 5, "Rate Limiter maximum burst")

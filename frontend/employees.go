@@ -248,12 +248,23 @@ func employeesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apiURL := fmt.Sprintf("http://localhost:4000/api/employees?page=%d&page_size=10&sort=%s", page, sort)
-	resp, err := http.Get(apiURL)
+
+	// UPDATED: Use callAPI instead of http.Get
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
 	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		http.Error(w, "Failed to connect to API", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, fmt.Sprintf("API returned status: %d", resp.StatusCode), http.StatusInternalServerError)
+		return
+	}
 
 	var result struct {
 		Employees []Employee `json:"employees"`
@@ -282,21 +293,17 @@ func employeesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createEmployeeHandler(w http.ResponseWriter, r *http.Request) {
-	// If it's a GET request, just show the empty form
 	if r.Method == http.MethodGet {
 		createEmployeeTemplate.Execute(w, nil)
 		return
 	}
 
-	// If it's a POST request, process the form submission
 	if r.Method == http.MethodPost {
 		branchID, _ := strconv.ParseInt(r.FormValue("branch_id"), 10, 64)
 		accountType, _ := strconv.Atoi(r.FormValue("account_type"))
 
-		// Set position_id to match the account_type exactly
 		positionID := int64(accountType)
 
-		// Construct the payload exactly as the API expects it
 		payload := map[string]interface{}{
 			"ssid":         r.FormValue("ssid"),
 			"username":     r.FormValue("username"),
@@ -309,26 +316,29 @@ func createEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 
 		jsonBody, _ := json.Marshal(payload)
 
-		// Send the POST request to the API
-		resp, err := http.Post("http://localhost:4000/api/employees", "application/json", bytes.NewBuffer(jsonBody))
+		// UPDATED: Use callAPI instead of http.Post
+		resp, err := callAPI(r, http.MethodPost, "http://localhost:4000/api/employees", bytes.NewBuffer(jsonBody))
+
 		if err != nil {
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
 			createEmployeeTemplate.Execute(w, map[string]string{"Error": "Failed to connect to the API."})
 			return
 		}
 		defer resp.Body.Close()
 
-		// 201 Created means both the Employee and User rows were successfully saved
 		if resp.StatusCode == http.StatusCreated {
 			createEmployeeTemplate.Execute(w, map[string]string{"Message": "Success! Employee and associated user account have been created."})
 			return
 		}
 
-		// If we get here, the API returned an error (e.g., 400 Bad Request or 422 Unprocessable Entity)
-		// Usually caused by duplicate SSID, duplicate Email, or missing Person record.
 		createEmployeeTemplate.Execute(w, map[string]string{"Error": "Failed to create employee. Ensure the SSID exists and the email is not already in use."})
 		return
 	}
 }
+
 func viewEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
@@ -336,12 +346,22 @@ func viewEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := http.Get("http://localhost:4000/api/employees/" + id)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		viewEmployeeTemplate.Execute(w, employeeViewData{Error: "Employee not found."})
+	// UPDATED: Use callAPI instead of http.Get
+	resp, err := callAPI(r, http.MethodGet, "http://localhost:4000/api/employees/"+id, nil)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		viewEmployeeTemplate.Execute(w, employeeViewData{Error: "Failed to reach API."})
 		return
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		viewEmployeeTemplate.Execute(w, employeeViewData{Error: "Employee not found."})
+		return
+	}
 
 	var result struct {
 		Employee Employee `json:"employee"`
@@ -354,12 +374,22 @@ func viewEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 func editEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 
-	// Fetch existing data
-	resp, err := http.Get("http://localhost:4000/api/employees/" + id)
-	if err != nil || resp.StatusCode != http.StatusOK {
+	// UPDATED: Use callAPI to fetch existing data
+	resp, err := callAPI(r, http.MethodGet, "http://localhost:4000/api/employees/"+id, nil)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		http.Error(w, "Failed to reach API", http.StatusInternalServerError)
+		return
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
 		http.Error(w, "Employee not found", http.StatusNotFound)
 		return
 	}
+
 	var result struct {
 		Employee Employee `json:"employee"`
 	}
@@ -367,7 +397,6 @@ func editEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	resp.Body.Close()
 
 	if r.Method == http.MethodPost {
-		// Parse form fields
 		branchID, _ := strconv.ParseInt(r.FormValue("branch_id"), 10, 64)
 		positionID, _ := strconv.ParseInt(r.FormValue("position_id"), 10, 64)
 		status := r.FormValue("status")
@@ -379,14 +408,17 @@ func editEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		jsonBody, _ := json.Marshal(payload)
-		req, _ := http.NewRequest(http.MethodPatch, "http://localhost:4000/api/employees/"+id, bytes.NewBuffer(jsonBody))
-		req.Header.Set("Content-Type", "application/json")
 
-		client := &http.Client{}
-		respPatch, err := client.Do(req)
+		// UPDATED: Use callAPI instead of http.NewRequest / client.Do
+		respPatch, err := callAPI(r, http.MethodPatch, "http://localhost:4000/api/employees/"+id, bytes.NewBuffer(jsonBody))
+
+		if err != nil && err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 
 		if err == nil && respPatch.StatusCode == http.StatusOK {
-			// Update local struct so the template reflects changes immediately
+			respPatch.Body.Close()
 			result.Employee.BranchID = branchID
 			result.Employee.PositionID = positionID
 			result.Employee.Status = status
@@ -394,6 +426,9 @@ func editEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if respPatch != nil {
+			respPatch.Body.Close()
+		}
 		editEmployeeTemplate.Execute(w, employeeViewData{Employee: &result.Employee, Error: "Failed to update employee records. Check input."})
 		return
 	}
@@ -401,7 +436,6 @@ func editEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	editEmployeeTemplate.Execute(w, employeeViewData{Employee: &result.Employee})
 }
 
-// Optional: A handler to trigger the delete route from the frontend
 func deleteEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -409,11 +443,21 @@ func deleteEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.URL.Query().Get("id")
-	req, _ := http.NewRequest(http.MethodDelete, "http://localhost:4000/api/employees/"+id, nil)
-	client := &http.Client{}
-	resp, err := client.Do(req)
 
-	if err == nil && resp.StatusCode == http.StatusOK {
+	// UPDATED: Use callAPI instead of http.NewRequest / client.Do
+	resp, err := callAPI(r, http.MethodDelete, "http://localhost:4000/api/employees/"+id, nil)
+
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		http.Error(w, "Failed to connect to API", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
 		http.Redirect(w, r, "/employees", http.StatusSeeOther)
 		return
 	}

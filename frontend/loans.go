@@ -116,20 +116,28 @@ func loansHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Send to Backend
+		// Encode payload
 		buf := new(bytes.Buffer)
 		json.NewEncoder(buf).Encode(payload)
-		resp, err := http.Post(apiURL, "application/json", buf)
+
+		// --- UPDATED: Use callAPI instead of http.Post to pass the auth token ---
+		resp, err := callAPI(r, http.MethodPost, apiURL, buf)
 
 		if err != nil {
+			// Redirect if the token is missing or invalid
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
 			data.ErrorMsg = "Backend server is unreachable."
 		} else {
 			defer resp.Body.Close()
 			if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
 				data.SuccessMsg = "Transaction processed successfully!"
 			} else {
+				// Read backend validation errors if something failed
 				body, _ := io.ReadAll(resp.Body)
-				data.ErrorMsg = fmt.Sprintf("Error: %s", string(body))
+				data.ErrorMsg = fmt.Sprintf("Error (%d): %s", resp.StatusCode, string(body))
 			}
 		}
 	}

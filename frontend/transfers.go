@@ -35,7 +35,7 @@ var makeTransferTemplate = template.Must(template.New("makeTransfer").Parse(`
         <h1>Internal Transfer</h1>
         
         {{if .Success}}<div class="msg success">Transfer of ${{.Amount}} was successful!</div>{{end}}
-        {{if .Error}}<div class="msg error">{{.Error}}</div>{{end}} <form method="POST">
+        {{if .Error}}<div class="msg error">{{.Error}}</div>{{end}}
 
         <form method="POST">
             <label>From Account (Source):</label>
@@ -87,9 +87,15 @@ func makeTransferHandler(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	json.NewEncoder(buf).Encode(payload)
 
-	// Call the backend API
-	resp, err := http.Post("http://localhost:4000/api/transfers", "application/json", buf)
+	// --- UPDATED: Use callAPI to securely pass the auth token ---
+	resp, err := callAPI(r, http.MethodPost, "http://localhost:4000/api/transfers", buf)
+
 	if err != nil {
+		// Redirect if the token is missing or invalid
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		makeTransferTemplate.Execute(w, map[string]interface{}{"Error": "Could not connect to the backend server."})
 		return
 	}

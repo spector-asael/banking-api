@@ -109,7 +109,6 @@ func personsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Better Query Parsing
 	page := 1
 	if p := r.URL.Query().Get("page"); p != "" {
 		if val, err := strconv.Atoi(p); err == nil && val > 0 {
@@ -119,14 +118,19 @@ func personsHandler(w http.ResponseWriter, r *http.Request) {
 	pageSize := 5
 
 	apiURL := fmt.Sprintf("http://localhost:4000/api/persons?page=%d&page_size=%d", page, pageSize)
-	resp, err := http.Get(apiURL)
+
+	// UPDATED: Use callAPI
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
 	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		http.Error(w, "Failed to fetch persons", http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
-	// 2. Corrected Struct Mapping
 	var result struct {
 		Persons []struct {
 			ID                   int    `json:"id"`
@@ -138,7 +142,7 @@ func personsHandler(w http.ResponseWriter, r *http.Request) {
 		} `json:"persons"`
 		Metadata struct {
 			CurrentPage int `json:"current_page"`
-			LastPage    int `json:"last_page"` // Map this to the API's "last_page"
+			LastPage    int `json:"last_page"`
 		} `json:"@metadata"`
 	}
 
@@ -147,7 +151,6 @@ func personsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 3. Prepare Template Data
 	persons := make([]Person, len(result.Persons))
 	for i, p := range result.Persons {
 		persons[i] = Person{
@@ -163,7 +166,7 @@ func personsHandler(w http.ResponseWriter, r *http.Request) {
 	data := personsPageData{
 		Persons:    persons,
 		Page:       result.Metadata.CurrentPage,
-		TotalPages: result.Metadata.LastPage, // result.Metadata.LastPage is our total
+		TotalPages: result.Metadata.LastPage,
 		PrevPage:   result.Metadata.CurrentPage - 1,
 		NextPage:   result.Metadata.CurrentPage + 1,
 		HasPrev:    result.Metadata.CurrentPage > 1,
@@ -248,7 +251,7 @@ func createPersonHandler(w http.ResponseWriter, r *http.Request) {
 			PhoneNumber:          r.FormValue("phone_number"),
 			LivingAddress:        r.FormValue("living_address"),
 		}
-		// Convert date_of_birth to RFC3339
+
 		dobRFC3339 := data.DateOfBirth
 		if data.DateOfBirth != "" {
 			if t, err := time.Parse("2006-01-02", data.DateOfBirth); err == nil {
@@ -269,16 +272,21 @@ func createPersonHandler(w http.ResponseWriter, r *http.Request) {
 			createPersonTemplate.Execute(w, pageData{Error: "Failed to encode data."})
 			return
 		}
-		resp, err := http.Post("http://localhost:4000/api/persons", "application/json", buf)
+
+		// UPDATED: Use callAPI
+		resp, err := callAPI(r, http.MethodPost, "http://localhost:4000/api/persons", buf)
 		if err != nil {
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
 			createPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
 			return
 		}
 		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusCreated {
-			// Always read the full response body for error reporting
 			raw, _ := io.ReadAll(resp.Body)
-			// Try to decode JSON error
 			var errResp struct {
 				Error string `json:"error"`
 			}
@@ -291,7 +299,6 @@ func createPersonHandler(w http.ResponseWriter, r *http.Request) {
 			if msg == "" {
 				msg = "Backend error."
 			}
-			// For debugging: print the raw response to server logs
 			fmt.Println("[DEBUG] Backend error response:", msg)
 			createPersonTemplate.Execute(w, pageData{Error: msg})
 			return
@@ -302,6 +309,7 @@ func createPersonHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 }
 
+// UPDATED: Replaced JS Fetch directly to the backend with a standard Form POST to our Go app
 var viewPersonTemplate = template.Must(template.New("viewPerson").Parse(`
 <!DOCTYPE html>
 <html lang="en">
@@ -348,22 +356,10 @@ var viewPersonTemplate = template.Must(template.New("viewPerson").Parse(`
                 <input type="hidden" name="ssid" value="{{.Person.SocialSecurityNumber}}">
                 <button class="edit-btn" type="submit">Edit</button>
             </form>
-            <button class="delete-btn" onclick="deletePerson('{{.Person.SocialSecurityNumber}}')">Delete</button>
+            <form action="/persons/delete?ssid={{.Person.SocialSecurityNumber}}" method="POST" onsubmit="return confirm('Are you sure you want to delete this person?');" style="display:inline;">
+                <button type="submit" class="delete-btn">Delete</button>
+            </form>
         </div>
-        <script>
-        function deletePerson(ssid) {
-            if (!confirm('Are you sure you want to delete this person?')) return;
-            fetch('http://localhost:4000/api/persons/' + encodeURIComponent(ssid), {
-                method: 'DELETE'
-            }).then(resp => {
-                if (resp.ok) {
-                    window.location = '/persons';
-                } else {
-                    resp.text().then(t => alert('Delete failed: ' + t));
-                }
-            }).catch(() => alert('Delete failed: network error'));
-        }
-        </script>
         {{end}}
         <a class="back" href="/persons">&larr; Back to Persons</a>
     </div>
@@ -400,19 +396,26 @@ func viewPersonHandler(w http.ResponseWriter, r *http.Request) {
 		viewPersonTemplate.Execute(w, viewPersonData{Error: "No SSID provided."})
 		return
 	}
-	// Call backend API to get person by SSID
+
 	apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
-	resp, err := http.Get(apiURL)
+
+	// UPDATED: Use callAPI
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
 	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		viewPersonTemplate.Execute(w, viewPersonData{Error: "Failed to contact backend API."})
 		return
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusOK {
 		viewPersonTemplate.Execute(w, viewPersonData{Error: "Person not found or API error."})
 		return
 	}
-	// Parse JSON response
+
 	var result struct {
 		Person PersonDetails `json:"person"`
 	}
@@ -467,7 +470,6 @@ var editPersonTemplate = template.Must(template.New("editPerson").Parse(`
 </html>
 `))
 
-// editPersonHandler renders and processes the edit person form
 func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 	type pageData struct {
 		Person  *PersonDetails
@@ -480,14 +482,20 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodGet {
-		// Fetch person data from backend
 		apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
-		resp, err := http.Get(apiURL)
+
+		// UPDATED: Use callAPI
+		resp, err := callAPI(r, http.MethodGet, apiURL, nil)
 		if err != nil {
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
 			editPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
 			return
 		}
 		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusOK {
 			editPersonTemplate.Execute(w, pageData{Error: "Person not found or API error."})
 			return
@@ -499,7 +507,6 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 			editPersonTemplate.Execute(w, pageData{Error: "Failed to parse API response."})
 			return
 		}
-		// Convert RFC3339 date to yyyy-mm-dd for input
 		if len(result.Person.DateOfBirth) >= 10 {
 			result.Person.DateOfBirth = result.Person.DateOfBirth[:10]
 		}
@@ -511,7 +518,6 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 			editPersonTemplate.Execute(w, pageData{Error: "Invalid form submission."})
 			return
 		}
-		// Prepare PATCH payload
 		payload := map[string]string{
 			"first_name":     r.FormValue("first_name"),
 			"last_name":      r.FormValue("last_name"),
@@ -520,7 +526,6 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 			"phone_number":   r.FormValue("phone_number"),
 			"living_address": r.FormValue("living_address"),
 		}
-		// Convert date_of_birth to RFC3339
 		if dob := payload["date_of_birth"]; dob != "" {
 			if t, err := time.Parse("2006-01-02", dob); err == nil {
 				payload["date_of_birth"] = t.Format(time.RFC3339)
@@ -531,18 +536,20 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 			editPersonTemplate.Execute(w, pageData{Error: "Failed to encode data."})
 			return
 		}
-		req, err := http.NewRequest(http.MethodPatch, fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid), buf)
+
+		// UPDATED: Use callAPI instead of client.Do
+		patchURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
+		resp, err := callAPI(r, http.MethodPatch, patchURL, buf)
 		if err != nil {
-			editPersonTemplate.Execute(w, pageData{Error: "Failed to create request."})
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
 			editPersonTemplate.Execute(w, pageData{Error: "Failed to contact backend API."})
 			return
 		}
 		defer resp.Body.Close()
+
 		if resp.StatusCode != http.StatusOK {
 			raw, _ := io.ReadAll(resp.Body)
 			msg := string(raw)
@@ -552,14 +559,16 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 			editPersonTemplate.Execute(w, pageData{Error: msg})
 			return
 		}
+
 		// Success: fetch updated data for display
 		apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
-		resp2, err := http.Get(apiURL)
+		resp2, err := callAPI(r, http.MethodGet, apiURL, nil)
 		if err != nil {
 			editPersonTemplate.Execute(w, pageData{Message: "Person updated!", Error: "(But failed to reload data)"})
 			return
 		}
 		defer resp2.Body.Close()
+
 		var result struct {
 			Person PersonDetails `json:"person"`
 		}
@@ -574,4 +583,39 @@ func editPersonHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+}
+
+// NEW: Handler to securely pass delete requests to the backend with the token
+func deletePersonHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ssid := r.URL.Query().Get("ssid")
+	if ssid == "" {
+		http.Error(w, "SSID is required", http.StatusBadRequest)
+		return
+	}
+
+	apiURL := fmt.Sprintf("http://localhost:4000/api/persons/%s", ssid)
+	resp, err := callAPI(r, http.MethodDelete, apiURL, nil)
+
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		http.Error(w, "Failed to connect to API", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		http.Redirect(w, r, "/persons", http.StatusSeeOther)
+		return
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	http.Error(w, fmt.Sprintf("Failed to delete person: %s", string(body)), http.StatusInternalServerError)
 }

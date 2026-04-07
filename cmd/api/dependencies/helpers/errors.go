@@ -97,3 +97,16 @@ func (a *HelperDependencies) InvalidAuthenticationTokenResponse(w http.ResponseW
 	a.errorResponseJSON(w, r, http.StatusUnauthorized, message)
 
 }
+
+// Note: 401 is Unauthorized (anonymous) and 403 is Forbidden (authenticated
+// but not activated or don't have the right privilege)
+
+func (a *HelperDependencies) AuthenticationRequiredResponse(w http.ResponseWriter, r *http.Request) {
+	message := "you must be authenticated to access this resource"
+	a.errorResponseJSON(w, r, http.StatusUnauthorized, message)
+}
+
+func (a *HelperDependencies) InactiveAccountResponse(w http.ResponseWriter, r *http.Request) {
+	message := "your user account must be activated to access this resource"
+	a.errorResponseJSON(w, r, http.StatusForbidden, message)
+}

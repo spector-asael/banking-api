@@ -1,35 +1,35 @@
 package main
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "html/template"
-    "io"
-    "net/http"
-    "strconv"
-    "time"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"html/template"
+	"io"
+	"net/http"
+	"strconv"
+	"time"
 )
 
 // --- Data Structures ---
 
 type Account struct {
-    ID            int64  `json:"id"`
-    AccountNumber string `json:"account_number"`
-    Status        string `json:"status"`
-    OpenedAt      string `json:"opened_at"`
-    ClosedAt      string `json:"closed_at,omitempty"`
+	ID            int64  `json:"id"`
+	AccountNumber string `json:"account_number"`
+	Status        string `json:"status"`
+	OpenedAt      string `json:"opened_at"`
+	ClosedAt      string `json:"closed_at,omitempty"`
 }
 
 type accountsPageData struct {
-    Accounts   []Account
-    Page       int
-    TotalPages int
-    PrevPage   int
-    NextPage   int
-    HasPrev    bool
-    HasNext    bool
-    Error      string
+	Accounts   []Account
+	Page       int
+	TotalPages int
+	PrevPage   int
+	NextPage   int
+	HasPrev    bool
+	HasNext    bool
+	Error      string
 }
 
 var accountsTemplate = template.Must(template.New("accounts").Parse(`
@@ -145,8 +145,18 @@ var viewAccountTemplate = template.Must(template.New("viewAccount").Parse(`
     <script>
     function deleteAccount(id) {
         if(!confirm('Delete this account?')) return;
-        fetch('http://localhost:4000/api/accounts/' + id, { method: 'DELETE' })
-        .then(resp => resp.ok ? window.location='/accounts' : alert('Delete failed'));
+        
+        // UPDATED: Target the frontend Go server so it can attach the auth token via callAPI
+        fetch('/accounts/view?id=' + id, { method: 'DELETE' })
+        .then(resp => {
+            if (resp.redirected) {
+                window.location = resp.url; // Follow redirect to login if unauthorized
+            } else if (resp.ok) {
+                window.location = '/accounts';
+            } else {
+                alert('Delete failed');
+            }
+        });
     }
     </script>
 </body>
@@ -154,89 +164,136 @@ var viewAccountTemplate = template.Must(template.New("viewAccount").Parse(`
 `))
 
 func accountsHandler(w http.ResponseWriter, r *http.Request) {
-    page := 1
-    if p := r.URL.Query().Get("page"); p != "" {
-        if val, err := strconv.Atoi(p); err == nil { page = val }
-    }
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		if val, err := strconv.Atoi(p); err == nil {
+			page = val
+		}
+	}
 
-    apiURL := fmt.Sprintf("http://localhost:4000/api/accounts?page=%d&page_size=5", page)
-    resp, err := http.Get(apiURL)
-    if err != nil {
-        accountsTemplate.Execute(w, accountsPageData{Error: "Backend API unreachable"})
-        return
-    }
-    defer resp.Body.Close()
+	apiURL := fmt.Sprintf("http://localhost:4000/api/accounts?page=%d&page_size=5", page)
 
-    var result struct {
-        Accounts []Account `json:"accounts"`
-        Metadata struct {
-            CurrentPage int `json:"current_page"`
-            LastPage    int `json:"last_page"`
-        } `json:"@metadata"`
-    }
-    json.NewDecoder(resp.Body).Decode(&result)
+	// UPDATED: Use callAPI
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		accountsTemplate.Execute(w, accountsPageData{Error: "Backend API unreachable"})
+		return
+	}
+	defer resp.Body.Close()
 
-    data := accountsPageData{
-        Accounts:   result.Accounts,
-        Page:       result.Metadata.CurrentPage,
-        TotalPages: result.Metadata.LastPage,
-        PrevPage:   result.Metadata.CurrentPage - 1,
-        NextPage:   result.Metadata.CurrentPage + 1,
-        HasPrev:    result.Metadata.CurrentPage > 1,
-        HasNext:    result.Metadata.CurrentPage < result.Metadata.LastPage,
-    }
+	var result struct {
+		Accounts []Account `json:"accounts"`
+		Metadata struct {
+			CurrentPage int `json:"current_page"`
+			LastPage    int `json:"last_page"`
+		} `json:"@metadata"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
 
-    accountsTemplate.Execute(w, data)
+	data := accountsPageData{
+		Accounts:   result.Accounts,
+		Page:       result.Metadata.CurrentPage,
+		TotalPages: result.Metadata.LastPage,
+		PrevPage:   result.Metadata.CurrentPage - 1,
+		NextPage:   result.Metadata.CurrentPage + 1,
+		HasPrev:    result.Metadata.CurrentPage > 1,
+		HasNext:    result.Metadata.CurrentPage < result.Metadata.LastPage,
+	}
+
+	accountsTemplate.Execute(w, data)
 }
 
 func createAccountHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method == http.MethodGet {
-        createAccountTemplate.Execute(w, nil)
-        return
-    }
+	if r.Method == http.MethodGet {
+		createAccountTemplate.Execute(w, nil)
+		return
+	}
 
-    // Parse form values
-    branchID, _ := strconv.ParseInt(r.FormValue("branch_id"), 10, 64)
-    accountTypeID, _ := strconv.ParseInt(r.FormValue("account_type_id"), 10, 64)
-    
-    // Format OpenedAt to RFC3339 for the backend
-    openedAt := time.Now().Format(time.RFC3339)
+	// Parse form values
+	branchID, _ := strconv.ParseInt(r.FormValue("branch_id"), 10, 64)
+	accountTypeID, _ := strconv.ParseInt(r.FormValue("account_type_id"), 10, 64)
 
-    // GL Account ID is no longer sent to the backend!
-    payload := map[string]interface{}{
-        "account_number":         r.FormValue("account_number"),
-        "branch_id_opened_at":    branchID,
-        "account_type_id":        accountTypeID,
-        "status":                 "active",
-        "opened_at":              openedAt,
-        "social_security_number": r.FormValue("ssid"),
-        "is_joint_account":       false,
-    }
+	// Format OpenedAt to RFC3339 for the backend
+	openedAt := time.Now().Format(time.RFC3339)
 
-    buf := new(bytes.Buffer)
-    json.NewEncoder(buf).Encode(payload)
+	payload := map[string]interface{}{
+		"account_number":         r.FormValue("account_number"),
+		"branch_id_opened_at":    branchID,
+		"account_type_id":        accountTypeID,
+		"status":                 "active",
+		"opened_at":              openedAt,
+		"social_security_number": r.FormValue("ssid"),
+		"is_joint_account":       false,
+	}
 
-    resp, err := http.Post("http://localhost:4000/api/accounts", "application/json", buf)
-    if err != nil || resp.StatusCode != http.StatusCreated {
-        raw, _ := io.ReadAll(resp.Body)
-        createAccountTemplate.Execute(w, map[string]string{"Error": string(raw)})
-        return
-    }
+	buf := new(bytes.Buffer)
+	json.NewEncoder(buf).Encode(payload)
 
-    http.Redirect(w, r, "/accounts", http.StatusSeeOther)
+	// UPDATED: Use callAPI
+	resp, err := callAPI(r, http.MethodPost, "http://localhost:4000/api/accounts", buf)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		createAccountTemplate.Execute(w, map[string]string{"Error": "Backend API unreachable"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		raw, _ := io.ReadAll(resp.Body)
+		createAccountTemplate.Execute(w, map[string]string{"Error": string(raw)})
+		return
+	}
+
+	http.Redirect(w, r, "/accounts", http.StatusSeeOther)
 }
 
 func viewAccountHandler(w http.ResponseWriter, r *http.Request) {
-    id := r.URL.Query().Get("id")
-    resp, err := http.Get("http://localhost:4000/api/accounts/" + id)
-    if err != nil || resp.StatusCode != http.StatusOK {
-        http.Redirect(w, r, "/accounts", http.StatusSeeOther)
-        return
-    }
-    defer resp.Body.Close()
+	id := r.URL.Query().Get("id")
+	apiURL := "http://localhost:4000/api/accounts/" + id
 
-    var result struct { Account Account `json:"account"` }
-    json.NewDecoder(resp.Body).Decode(&result)
-    viewAccountTemplate.Execute(w, result.Account)
+	// UPDATED: Intercept DELETE requests from the JS fetch call
+	if r.Method == http.MethodDelete {
+		resp, err := callAPI(r, http.MethodDelete, apiURL, nil)
+		if err != nil {
+			if err.Error() == "unauthorized" {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
+			http.Error(w, "Backend API unreachable", http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		w.WriteHeader(resp.StatusCode)
+		return
+	}
+
+	// UPDATED: Use callAPI for the standard GET request
+	resp, err := callAPI(r, http.MethodGet, apiURL, nil)
+	if err != nil {
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/accounts", http.StatusSeeOther)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Redirect(w, r, "/accounts", http.StatusSeeOther)
+		return
+	}
+
+	var result struct {
+		Account Account `json:"account"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+	viewAccountTemplate.Execute(w, result.Account)
 }
-

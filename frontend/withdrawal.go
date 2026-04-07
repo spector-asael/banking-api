@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"bytes"
@@ -82,10 +82,15 @@ func makeWithdrawalHandler(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	json.NewEncoder(buf).Encode(payload)
 
-	// POST to the backend API
-	resp, err := http.Post("http://localhost:4000/api/withdrawals", "application/json", buf)
-	
+	// --- UPDATED: Use callAPI to securely pass the auth token ---
+	resp, err := callAPI(r, http.MethodPost, "http://localhost:4000/api/withdrawals", buf)
+
 	if err != nil {
+		// Redirect if the token is missing or invalid
+		if err.Error() == "unauthorized" {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
 		makeWithdrawalTemplate.Execute(w, map[string]interface{}{"Error": "Could not connect to the backend server."})
 		return
 	}

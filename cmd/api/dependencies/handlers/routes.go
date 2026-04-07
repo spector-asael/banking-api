@@ -27,51 +27,51 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	// router.MethodNotAllowed = http.HandlerFunc(a.methodNotAllowedResponse)
 	// setup routes
 	// Persons routes
-	router.HandlerFunc(http.MethodGet, "/api/persons", a.getAllPersonsHandler)         // Get all persons
-	router.HandlerFunc(http.MethodPost, "/api/persons", a.createPersonHandler)         // Create a new person
-	router.HandlerFunc(http.MethodGet, "/api/persons/:ssid", a.getPersonBySSIDHandler) // Get a person by SSID
-	router.HandlerFunc(http.MethodPatch, "/api/persons/:ssid", a.updatePersonHandler)  // Update a person by SSID
-	router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", a.deletePersonHandler)
+	router.HandlerFunc(http.MethodGet, "/api/persons", middlewareInstance.RequireActivatedUser(a.getAllPersonsHandler))         // Get all persons
+	router.HandlerFunc(http.MethodPost, "/api/persons", middlewareInstance.RequireActivatedUser(a.createPersonHandler))         // Create a new person
+	router.HandlerFunc(http.MethodGet, "/api/persons/:ssid", middlewareInstance.RequireActivatedUser(a.getPersonBySSIDHandler)) // Get a person by SSID
+	router.HandlerFunc(http.MethodPatch, "/api/persons/:ssid", middlewareInstance.RequireActivatedUser(a.updatePersonHandler))  // Update a person by SSID
+	router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", middlewareInstance.RequireActivatedUser(a.deletePersonHandler))
 
 	// Customers routes
-	router.HandlerFunc(http.MethodGet, "/api/customers", a.getAllCustomersHandler)                          // Get all customers
-	router.HandlerFunc(http.MethodPost, "/api/customers", a.createCustomerHandler)                          // Create a new customer
-	router.HandlerFunc(http.MethodGet, "/api/customers/:id", a.getCustomerByIDHandler)                      // Get a customer by ID
-	router.HandlerFunc(http.MethodPatch, "/api/customers/:id/kyc-status", a.updateCustomerKYCStatusHandler) // Update KYC status
-	router.HandlerFunc(http.MethodDelete, "/api/customers/:id", a.deleteCustomerHandler)                    // Delete a customer
+	router.HandlerFunc(http.MethodGet, "/api/customers", middlewareInstance.RequireActivatedUser(a.getAllCustomersHandler))                          // Get all customers
+	router.HandlerFunc(http.MethodPost, "/api/customers", middlewareInstance.RequireActivatedUser(a.createCustomerHandler))                          // Create a new customer
+	router.HandlerFunc(http.MethodGet, "/api/customers/:id", middlewareInstance.RequireActivatedUser(a.getCustomerByIDHandler))                      // Get a customer by ID
+	router.HandlerFunc(http.MethodPatch, "/api/customers/:id/kyc-status", middlewareInstance.RequireActivatedUser(a.updateCustomerKYCStatusHandler)) // Update KYC status
+	router.HandlerFunc(http.MethodDelete, "/api/customers/:id", middlewareInstance.RequireActivatedUser(a.deleteCustomerHandler))                    // Delete a customer
 
 	// Employees routes
-	router.HandlerFunc(http.MethodGet, "/api/employees", a.getAllEmployeesHandler)       // Get all employees
-	router.HandlerFunc(http.MethodGet, "/api/employees/:id", a.getEmployeeByIDHandler)   // Get an employee by ID
-	router.HandlerFunc(http.MethodDelete, "/api/employees/:id", a.deleteEmployeeHandler) // Delete an employee
-	router.HandlerFunc(http.MethodPost, "/api/employees", a.createEmployeeHandler)       // Create a new employee
-	router.HandlerFunc(http.MethodPatch, "/api/employees/:id", a.updateEmployeeHandler)  // Update employee status
+	router.HandlerFunc(http.MethodGet, "/api/employees", middlewareInstance.RequireActivatedUser(a.getAllEmployeesHandler))       // Get all employees
+	router.HandlerFunc(http.MethodGet, "/api/employees/:id", middlewareInstance.RequireActivatedUser(a.getEmployeeByIDHandler))   // Get an employee by ID
+	router.HandlerFunc(http.MethodDelete, "/api/employees/:id", middlewareInstance.RequireActivatedUser(a.deleteEmployeeHandler)) // Delete an employee
+	router.HandlerFunc(http.MethodPost, "/api/employees", middlewareInstance.RequireActivatedUser(a.createEmployeeHandler))       // Create a new employee
+	router.HandlerFunc(http.MethodPatch, "/api/employees/:id", middlewareInstance.RequireActivatedUser(a.updateEmployeeHandler))  // Update employee status
 
 	// User routes
-	router.HandlerFunc(http.MethodGet, "/api/users", a.GetAllUsersHandler)            // Get all users
-	router.HandlerFunc(http.MethodGet, "/api/users/:id", a.GetUserByIDHandler)        // Get a user by ID
-	router.HandlerFunc(http.MethodPatch, "/api/users/:id", a.UpdateUserHandler)       // Update a user
-	router.HandlerFunc(http.MethodPut, "/api/users/activated", a.ActivateUserHandler) // Activate a user account
+	router.HandlerFunc(http.MethodGet, "/api/users", middlewareInstance.RequireActivatedUser(a.GetAllUsersHandler))      // Get all users
+	router.HandlerFunc(http.MethodGet, "/api/users/:id", middlewareInstance.RequireActivatedUser(a.GetUserByIDHandler))  // Get a user by ID
+	router.HandlerFunc(http.MethodPatch, "/api/users/:id", middlewareInstance.RequireActivatedUser(a.UpdateUserHandler)) // Update a user
+	router.HandlerFunc(http.MethodPut, "/api/users/activated", a.ActivateUserHandler)                                    // Activate a user account
 
 	// Accounts routes
-	router.HandlerFunc(http.MethodGet, "/api/accounts", a.getAllAccountsHandler)       // Get all accounts
-	router.HandlerFunc(http.MethodPost, "/api/accounts", a.createAccountHandler)       // Create a new account
-	router.HandlerFunc(http.MethodGet, "/api/accounts/:id", a.getAccountByIDHandler)   // Get an account by ID
-	router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", a.updateAccountHandler)  // Update an account
-	router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", a.deleteAccountHandler) // Delete an account
+	router.HandlerFunc(http.MethodGet, "/api/accounts", middlewareInstance.RequireActivatedUser(a.getAllAccountsHandler))       // Get all accounts
+	router.HandlerFunc(http.MethodPost, "/api/accounts", middlewareInstance.RequireActivatedUser(a.createAccountHandler))       // Create a new account
+	router.HandlerFunc(http.MethodGet, "/api/accounts/:id", middlewareInstance.RequireActivatedUser(a.getAccountByIDHandler))   // Get an account by ID
+	router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", middlewareInstance.RequireActivatedUser(a.updateAccountHandler))  // Update an account
+	router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", middlewareInstance.RequireActivatedUser(a.deleteAccountHandler)) // Delete an account
 
 	router.HandlerFunc(http.MethodPost, "/api/authentication/token", a.createAuthenticationTokenHandler)
 
 	// Deposit route
-	router.HandlerFunc(http.MethodPost, "/api/deposits", a.HandleDeposit) // Make a deposit
+	router.HandlerFunc(http.MethodPost, "/api/deposits", middlewareInstance.RequireActivatedUser(a.HandleDeposit)) // Make a deposit
 
-	router.HandlerFunc(http.MethodPost, "/api/withdrawals", a.HandleWithdrawal) // Make a withdrawal
+	router.HandlerFunc(http.MethodPost, "/api/withdrawals", middlewareInstance.RequireActivatedUser(a.HandleWithdrawal)) // Make a withdrawal
 
 	// Transfer route
-	router.HandlerFunc(http.MethodPost, "/api/transfers", a.HandleTransfer) // Make a transfer
+	router.HandlerFunc(http.MethodPost, "/api/transfers", middlewareInstance.RequireActivatedUser(a.HandleTransfer)) // Make a transfer
 
-	router.HandlerFunc(http.MethodPost, "/api/loans", a.CreateLoanHandler)
-	router.HandlerFunc(http.MethodPost, "/api/loans/payments", a.CreateLoanPaymentHandler)
+	router.HandlerFunc(http.MethodPost, "/api/loans", middlewareInstance.RequireActivatedUser(a.CreateLoanHandler))
+	router.HandlerFunc(http.MethodPost, "/api/loans/payments", middlewareInstance.RequireActivatedUser(a.CreateLoanPaymentHandler))
 
 	router.Handler(http.MethodGet, "/api/metrics", expvar.Handler())
 
