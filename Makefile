@@ -1,6 +1,5 @@
 # CMPS3162 Advanced Databases - Banking System
 # Asael Tobar
-# March 19th 2026
 
 
 # Import environment variables from .envrc
