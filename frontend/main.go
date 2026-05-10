@@ -1,71 +1,51 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
+	"sync"
 )
 
+// Counter holds our "Source of Truth"
+// There is no database here, just a simple in-memory counter.
+// In a real application, this would likely be stored in a database or cache like Redis.
+// Using a Mutex ensures that if two students click at once, the count is safe.
+// We use a Mutex to ensure that only one goroutine can access the counter at a time, preventing
+// race conditions and ensuring that the count is accurate even when multiple requests
+// are made simultaneously.
+type Counter struct {
+	mu    sync.Mutex
+	Value int
+}
+
+var globalCounter = Counter{
+	Value: 0,
+}
+
 func main() {
-	http.HandleFunc("/", homeHandler)
-	http.HandleFunc("/persons", personsHandler)
-	http.HandleFunc("/persons/create", createPersonHandler)
-	http.HandleFunc("/persons/view", viewPersonHandler)
-	http.HandleFunc("/persons/edit", editPersonHandler)
-	http.HandleFunc("/persons/delete", deletePersonHandler)
+	mux := http.NewServeMux()
 
-	http.HandleFunc("/customers", customersHandler)
-	http.HandleFunc("/customers/create", createCustomerHandler)
-	http.HandleFunc("/customers/view", viewCustomerHandler)
-	http.HandleFunc("/customers/kyc", updateKYCHandler)
-	http.HandleFunc("/customers/delete", deleteCustomerHandler)
+	// Serve static files (HTML, CSS, JS) from the "static" folder
+	fs := http.FileServer(http.Dir("./static"))
+	mux.Handle("/", fs)
 
-	http.HandleFunc("/employees", employeesHandler)
-	http.HandleFunc("/employees/create", createEmployeeHandler)
-	http.HandleFunc("/employees/view", viewEmployeeHandler)
-	http.HandleFunc("/employees/edit", editEmployeeHandler)
-	http.HandleFunc("/employees/delete", deleteEmployeeHandler)
+	// API Route: Increment count
+	mux.HandleFunc("POST /api/increment", incrementCount)
 
-	http.HandleFunc("/accounts", accountsHandler)
-	http.HandleFunc("/accounts/create", createAccountHandler)
-	http.HandleFunc("/accounts/view", viewAccountHandler)
-
-	http.HandleFunc("/users", usersHandler)
-	http.HandleFunc("/users/view", viewUserHandler)
-	http.HandleFunc("/users/edit", editUserHandler)
-	//http.HandleFunc("/accounts/edit", editAccountHandler)
-	// http.HandleFunc("/customers", customersHandler)
-	http.HandleFunc("/deposits", makeDepositHandler)
-	http.HandleFunc("/withdrawals", makeWithdrawalHandler)
-	http.HandleFunc("/transfers", makeTransferHandler)
-	http.HandleFunc("/loans", loansHandler)
-
-	http.HandleFunc("/login", loginHandler)
-
-	http.HandleFunc("/activate", activateAccountHandler)
-	log.Println("Frontend running at http://localhost:9000/")
-	if err := http.ListenAndServe(":9000", nil); err != nil {
-		log.Fatal(err)
+	fmt.Println("Server starting at http://localhost:9000")
+	if err := http.ListenAndServe(":9000", mux); err != nil {
+		log.Fatalf("Server failed to start: %v", err)
 	}
 }
 
-// Helper to execute API requests with the Bearer token attached
-func callAPI(r *http.Request, method, url string, body io.Reader) (*http.Response, error) {
-	cookie, err := r.Cookie("auth_token")
-	if err != nil {
-		return nil, fmt.Errorf("unauthorized")
-	}
+func incrementCount(w http.ResponseWriter, r *http.Request) {
+	globalCounter.mu.Lock()
+	globalCounter.Value++
+	current := globalCounter.Value
+	globalCounter.mu.Unlock()
 
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+cookie.Value)
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	return http.DefaultClient.Do(req)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int{"value": current})
 }

@@ -35,7 +35,8 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	router.HandlerFunc(http.MethodDelete, "/api/persons/:ssid", middlewareInstance.RequirePermission("persons:write", a.deletePersonHandler))
 
 	// Customers routes
-	router.HandlerFunc(http.MethodGet, "/api/customers", middlewareInstance.RequirePermission("customers:read", a.getAllCustomersHandler))
+	// router.HandlerFunc(http.MethodGet, "/api/customers", middlewareInstance.RequirePermission("customers:read", a.getAllCustomersHandler))
+	router.HandlerFunc(http.MethodGet, "/api/customers", a.getAllCustomersHandler)
 	router.HandlerFunc(http.MethodPost, "/api/customers", middlewareInstance.RequirePermission("customers:write", a.createCustomerHandler))
 	router.HandlerFunc(http.MethodGet, "/api/customers/:id", middlewareInstance.RequirePermission("customers:read", a.getCustomerByIDHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/customers/:id/kyc-status", middlewareInstance.RequirePermission("customers:write", a.updateCustomerKYCStatusHandler))
@@ -62,6 +63,7 @@ func (a *HandlerDependencies) Routes() http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/accounts/:id", middlewareInstance.RequirePermission("accounts:read", a.getAccountByIDHandler))
 	router.HandlerFunc(http.MethodPatch, "/api/accounts/:id", middlewareInstance.RequirePermission("accounts:write", a.updateAccountHandler))
 	router.HandlerFunc(http.MethodDelete, "/api/accounts/:id", middlewareInstance.RequirePermission("accounts:write", a.deleteAccountHandler))
+	router.HandlerFunc(http.MethodGet, "/api/history/:accountNumber", a.getAccountHistoryHandler)
 
 	// Authentication (Left unprotected so users can log in)
 	router.HandlerFunc(http.MethodPost, "/api/authentication/token", a.createAuthenticationTokenHandler)

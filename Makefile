@@ -25,6 +25,10 @@ run:
 	-smtp-username=${SMTP_USERNAME} \
 	-smtp-password=${SMTP_PASSWORD} \
 .PHONY: migrations/new
+
+run/frontend:
+	@echo 'Running frontend...'
+	cd frontend && go run .
 migrations/new:
 	@echo 'Creating migration files for ${name}...'
 	migrate create -seq -ext=.sql -dir=./migrations ${name}

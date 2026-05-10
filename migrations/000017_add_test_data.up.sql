@@ -24,12 +24,13 @@ INSERT INTO kyc_statuses (name, description) VALUES
 ('Approved', 'KYC verified'),
 ('Rejected', 'KYC rejected');
 
+/*
 INSERT INTO account_types 
 (name, description, interest_rate, minimum_balance, monthly_fee, overdraft_allowed, withdrawal_limit)
 VALUES
 ('Checking', 'Standard checking account', 0.00, 0.00, 10.00, TRUE, NULL),
 ('Savings', 'Interest bearing savings', 1.50, 100.00, 0.00, FALSE, 6);
-
+*/
 INSERT INTO loan_types (name, category, description) VALUES
 ('Personal Loan', 'Consumer', 'Unsecured personal loan'),
 ('Mortgage', 'Real Estate', 'Home mortgage loan'),
@@ -40,6 +41,7 @@ INSERT INTO journal_reference_types (name, description) VALUES
 ('Withdrawal', 'Customer withdrawal transaction'),
 ('Loan Disbursement', 'Loan issued to customer');
 
+/*
 INSERT INTO persons 
 (first_name, last_name, social_security_number, email, date_of_birth, phone_number, living_address)
 VALUES
@@ -60,4 +62,4 @@ VALUES
 INSERT INTO account_ownerships (customer_id, account_id, is_joint_account)
 VALUES
 (1, 1, FALSE),
-(2, 2, FALSE);
+(2, 2, FALSE);*/

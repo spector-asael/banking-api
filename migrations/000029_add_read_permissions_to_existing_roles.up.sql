@@ -1,4 +1,4 @@
--- 0: CUSTOMER
+/*-- 0: CUSTOMER
 -- Can view their own data and make transactions/loans. No access to persons/employees.
 INSERT INTO role_permissions (account_type_id, permission_id)
 SELECT 0, id FROM permissions WHERE code IN (
@@ -67,3 +67,4 @@ SELECT 3, id FROM permissions WHERE code IN (
 -- Full access to everything. Select all IDs.
 INSERT INTO role_permissions (account_type_id, permission_id)
 SELECT 4, id FROM permissions;
+*/

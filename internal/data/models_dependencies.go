@@ -17,6 +17,7 @@ type Models struct {
 	GLAccounts          GLAccountModel
 	Users               UserModel
 	Employees           EmployeeModel
+	Transactions        TransactionModel
 	Tokens              TokenModel
 	Permissions         PermissionModel
 }
@@ -36,6 +37,7 @@ func (m Models) NewModels(db *sql.DB) Models {
 		Employees:           EmployeeModel{DB: db},
 		Tokens:              TokenModel{DB: db},
 		Permissions:         PermissionModel{DB: db},
+		Transactions:        TransactionModel{DB: db},
 	}
 }
 
